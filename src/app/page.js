@@ -1,103 +1,153 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import ManagerDashboard from "@/components/dashboards/ManagerDashboard";
+import EmployeeDashboard from "@/components/dashboards/EmployeeDashboard";
+import { CircleUser } from "lucide-react";
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const { user, isLoaded } = useUser();
+  const [isInDB, setIsInDB] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [selectedRole, setSelectedRole] = useState(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    if (isLoaded && user) {
+      checkUserInDB(user);
+    }
+  }, [isLoaded, user]);
+
+  async function checkUserInDB(user) {
+    try {
+      const res = await fetch(`/api/user?id=${user.id}`);
+      const data = await res.json();
+      setIsInDB(data.exists);
+      setCurrentUser(data.currentUser);
+    } catch (err) {
+      console.error("Error checking user:", err);
+      setIsInDB(false);
+    }
+  }
+
+  async function handleFormSubmit(e) {
+  e.preventDefault();
+  const formData = new FormData(e.target);
+  const body = Object.fromEntries(formData.entries());
+
+  try {
+    const res = await fetch("/api/user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clerkId: user.id,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        ...body,
+      }),
+    });
+
+    const data = await res.json();
+
+    // ✅ Set both flags
+    setIsInDB(true);
+    setCurrentUser(data.user || data.currentUser || { 
+      clerkId: user.id,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      ...body,
+    });
+  } catch (err) {
+    console.error("Error saving user:", err);
+  }
+}
+
+
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center h-screen text-lg font-medium">
+        ⏳ Loading...
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Navbar */}
+      <div className="flex items-center justify-between px-6 py-4 bg-white shadow">
+        <h1 className="flex-1 min-w-0 text-2xl font-bold text-blue-600 truncate">
+          Sales Order
+        </h1>
+
+        <div className="flex items-center space-x-3 flex-nowrap">
+          {!user ? (
+            <>
+              <SignUpButton />
+              <SignInButton mode="modal">
+                <Button>Sign In</Button>
+              </SignInButton>
+            </>
+          ) : (
+            <UserButton>
+              <UserButton.MenuItems>
+                <UserButton.Link
+                  label="View User Id"
+                  labelIcon={<CircleUser />}
+                  href={`/view-user-id?id=${currentUser?.id ?? ''}`}
+
+                />
+              </UserButton.MenuItems>
+            </UserButton>
+          )}
         </div>
+      </div>
+
+      {/* Main Content */}
+      <main className="flex flex-col items-center justify-center mt-12">
+        {!user ? (
+          <div className="text-center">
+            <h2 className="text-3xl font-semibold mb-4">Welcome to MyApp 🚀</h2>
+            <p className="text-gray-600">
+              Please sign in or sign up to get started.
+            </p>
+          </div>
+        ) : isInDB === null ? (
+          <div className="text-lg mt-10">🔍 Checking user...</div>
+        ) : !isInDB ? (
+          <Card className="w-[350px] mt-8">
+            <CardHeader>
+              <CardTitle>Select Your Role</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleFormSubmit} className="space-y-4">
+                <select
+                  name="role"
+                  required
+                  className="border rounded p-2 w-full"
+                  onChange={(e) => {
+                    setSelectedRole(e.target.value);
+                  }}
+                >
+                  <option value="">-- Choose Role --</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Employee">Employee</option>
+                </select>
+                <Button type="submit" className="w-full">
+                  Save & Continue
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        ) : currentUser.role === "Manager" ? (
+          <ManagerDashboard currUser={currentUser} />
+        ) : (
+          <EmployeeDashboard />
+        )}
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
