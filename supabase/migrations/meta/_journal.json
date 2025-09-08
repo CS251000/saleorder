@@ -57,6 +57,20 @@
       "when": 1756497294483,
       "tag": "0007_optimal_ogun",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1756650050921,
+      "tag": "0008_living_firelord",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1757306121767,
+      "tag": "0009_wooden_machine_man",
+      "breakpoints": true
     }
   ]
 }

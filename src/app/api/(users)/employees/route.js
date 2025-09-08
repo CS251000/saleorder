@@ -38,13 +38,28 @@ export async function GET(req) {
   const managerId = searchParams.get("managerId");
 
   try {
+    if(!managerId){
+      const employeesList = await db
+      .select({
+        employeeId: employees.employeeId,
+        employeeName: users.username,
+        employeeRole: users.role,
+        employeePendingOrders: employees.pendingOrders,
+        employeeDispatchedOrders: employees.dispatchedOrders
+      })
+      .from(employees).leftJoin(users, eq(users.id, employees.employeeId));
+
+    return NextResponse.json(employeesList, { status: 200 });
+    }
     const employeesList = await db
       .select({
         employeeId: employees.employeeId,
         employeeName: users.username,
-        employeeRole: users.role
+        employeeRole: users.role,
+        employeePendingOrders: employees.pendingOrders,
+        employeeDispatchedOrders: employees.dispatchedOrders
       })
-      .from(employees).leftJoin(users,eq(users.id,employees.employeeId))
+      .from(employees).leftJoin(users, eq(users.id, employees.employeeId))
       .where(eq(employees.managerId, managerId));
 
     return NextResponse.json(employeesList, { status: 200 });

@@ -145,7 +145,7 @@ export default function Home() {
         ) : currentUser.role === "Manager" ? (
           <ManagerDashboard currUser={currentUser} />
         ) : (
-          <EmployeeDashboard />
+          <EmployeeDashboard currUser={currentUser} />
         )}
       </main>
     </div>
