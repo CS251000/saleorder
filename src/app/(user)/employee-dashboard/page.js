@@ -5,21 +5,23 @@ import { SignInButton, SignUpButton, UserButton, useUser } from '@clerk/nextjs';
 import { CircleUser } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, Suspense } from 'react'
 
-export default function EmployeeDashboardPage() {
-  const searchParams= useSearchParams();
+// Separate component that uses useSearchParams
+function EmployeeDashboardContent() {
+  const searchParams = useSearchParams();
   const employeeId = searchParams.get('id');
   const [currUser, setCurrUser] = useState(null);
-  const {user,isLoaded} = useUser();
-  useEffect(()=>{
-    async function fetchUser(){
-      try{
+  const { user, isLoaded } = useUser();
+
+  useEffect(() => {
+    async function fetchUser() {
+      try {
         const res = await fetch(`/api/user?userId=${employeeId}`);
         const data = await res.json();
         // console.log("data", data);
         setCurrUser(data.currentUser);
-      }catch(err){
+      } catch (err) {
         console.error(err);
       }
     }
@@ -31,9 +33,9 @@ export default function EmployeeDashboardPage() {
       {/* Navbar */}
       <div className="flex items-center justify-between px-6 py-4 bg-white shadow">
         <Link href="/">
-        <h1 className="flex-1 min-w-0 text-2xl font-bold text-blue-600 truncate">
-          Sales Order
-        </h1>
+          <h1 className="flex-1 min-w-0 text-2xl font-bold text-blue-600 truncate">
+            Sales Order
+          </h1>
         </Link>
         <h1 className="text-2xl hidden lg:inline font-bold">Employee Dashboard</h1>
         <div className="flex items-center space-x-3 flex-nowrap">
@@ -51,7 +53,6 @@ export default function EmployeeDashboardPage() {
                   label="View User Id"
                   labelIcon={<CircleUser />}
                   href={`/view-user-id?id=${currUser?.id ?? ''}`}
-
                 />
               </UserButton.MenuItems>
             </UserButton>
@@ -60,5 +61,18 @@ export default function EmployeeDashboardPage() {
       </div>
       <EmployeeDashboard currUser={currUser} />
     </div>
-  )
+  );
+}
+
+// Main component with Suspense wrapper
+export default function EmployeeDashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen">
+        <div>Loading...</div>
+      </div>
+    }>
+      <EmployeeDashboardContent />
+    </Suspense>
+  );
 }
