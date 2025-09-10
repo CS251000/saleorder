@@ -22,49 +22,82 @@ export default function ManagerDashboard({ currUser }) {
 
   const userAddedNotify = (msg) => toast.success(msg);
 
-  const handleSave = async (type) => {
-    try {
-      setLoading(true);
-
-      let body = {};
-      let url = "";
-
-      if (type === "employee") {
-        if (!employeeId.trim()) return;
-        url = "/api/employees";
-        body = { employeeId: employeeId.trim(), managerId: currUser?.id };
-      } else if (type === "party") {
-        if (!partyName.trim()) return;
-        url = "/api/parties";
-        body = { partyName: partyName.trim(), managerId: currUser?.id };
-      } else if (type === "agent") {
-        if (!agentName.trim()) return;
-        url = "/api/agents";
-        body = { agentName: agentName.trim(), managerId: currUser?.id };
-      }
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) throw new Error(`Failed to add ${type}`);
-
-      await res.json();
-      userAddedNotify(`${type} added successfully!`);
-
-      // Reset inputs
-      setEmployeeId("");
-      setPartyName("");
-      setAgentName("");
-    } catch (error) {
-      console.error(`Error adding ${type}:`, error);
-      toast.error(`Failed to add ${type}`);
-    } finally {
-      setLoading(false);
+const handleSave = async (type) => {
+  // VALIDATE BEFORE setLoading
+  if (type === "employee") {
+    if (!employeeId.trim()) {
+      toast.error("Employee ID is required");
+      return;
     }
-  };
+    if (!currUser?.id) {
+      toast.error("Manager ID missing (not signed in)");
+      return;
+    }
+  } else if (type === "party") {
+    if (!partyName.trim()) {
+      toast.error("Party name is required");
+      return;
+    }
+    if (!currUser?.id) {
+      toast.error("Manager ID missing (not signed in)");
+      return;
+    }
+  } else if (type === "agent") {
+    if (!agentName.trim()) {
+      toast.error("Agent name is required");
+      return;
+    }
+    if (!currUser?.id) {
+      toast.error("Manager ID missing (not signed in)");
+      return;
+    }
+  }
+
+  setLoading(true);
+  try {
+    let url = "";
+    let body = {};
+
+    if (type === "employee") {
+      url = "/api/employees";
+      body = { employeeId: employeeId.trim(), managerId: currUser.id };
+    } else if (type === "party") {
+      url = "/api/parties";
+      body = { partyName: partyName.trim(), managerId: currUser.id };
+    } else if (type === "agent") {
+      url = "/api/agents";
+      body = { agentName: agentName.trim(), managerId: currUser.id };
+    }
+
+    console.log("Sending to", url, body); // helpful while debugging
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      // show message returned by server if available
+      throw new Error(data?.error || `Failed to add ${type}`);
+    }
+
+    userAddedNotify(`${type} added successfully!`);
+
+    // reset appropriate fields
+    if (type === "employee") setEmployeeId("");
+    if (type === "party") setPartyName("");
+    if (type === "agent") setAgentName("");
+  } catch (err) {
+    console.error("handleSave error:", err);
+    toast.error(err.message || "Failed to add item");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="relative w-full px-4 sm:px-6">
