@@ -15,57 +15,59 @@ export default function Home() {
   const [selectedRole, setSelectedRole] = useState(null);
 
   useEffect(() => {
+    if (!isLoaded) return;
+    async function checkUserInDB(user) {
+      try {
+        const res = await fetch(`/api/user?id=${user.id}`);
+        const data = await res.json();
+        setIsInDB(data.exists);
+        setCurrentUser(data.currentUser);
+      } catch (err) {
+        console.error("Error checking user:", err);
+        setIsInDB(false);
+      }
+    }
     if (isLoaded && user) {
       checkUserInDB(user);
     }
   }, [isLoaded, user]);
 
-  async function checkUserInDB(user) {
+  async function handleFormSubmit(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const body = Object.fromEntries(formData.entries());
+
     try {
-      const res = await fetch(`/api/user?id=${user.id}`);
+      const res = await fetch("/api/user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clerkId: user.id,
+          username: user.username,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          ...body,
+        }),
+      });
+
       const data = await res.json();
-      setIsInDB(data.exists);
-      setCurrentUser(data.currentUser);
+
+      // ✅ Set both flags
+      setIsInDB(true);
+      setCurrentUser(
+        data.user ||
+          data.currentUser || {
+            clerkId: user.id,
+            username: user.username,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            ...body,
+          }
+      );
     } catch (err) {
-      console.error("Error checking user:", err);
-      setIsInDB(false);
+      console.error("Error saving user:", err);
     }
   }
-
-  async function handleFormSubmit(e) {
-  e.preventDefault();
-  const formData = new FormData(e.target);
-  const body = Object.fromEntries(formData.entries());
-
-  try {
-    const res = await fetch("/api/user", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        clerkId: user.id,
-        username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        ...body,
-      }),
-    });
-
-    const data = await res.json();
-
-    // ✅ Set both flags
-    setIsInDB(true);
-    setCurrentUser(data.user || data.currentUser || { 
-      clerkId: user.id,
-      username: user.username,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      ...body,
-    });
-  } catch (err) {
-    console.error("Error saving user:", err);
-  }
-}
-
 
   if (!isLoaded) {
     return (
@@ -97,8 +99,7 @@ export default function Home() {
                 <UserButton.Link
                   label="View User Id"
                   labelIcon={<CircleUser />}
-                  href={`/view-user-id?id=${currentUser?.id ?? ''}`}
-
+                  href={`/view-user-id?id=${currentUser?.id ?? ""}`}
                 />
               </UserButton.MenuItems>
             </UserButton>

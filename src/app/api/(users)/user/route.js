@@ -40,18 +40,22 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
-    await db.insert(users).values({
-      email: body.email,
-      clerkId: body.clerkId,
-      username: body.username,
-      firstName: body.firstName,
-      lastName: body.lastName,
-      role: body.role,
-    });
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        email: body.email,
+        clerkId: body.clerkId,
+        username: body.username,
+        firstName: body.firstName,
+        lastName: body.lastName,
+        role: body.role,
+      })
+      .returning(); // 🔑 Drizzle returns the inserted row(s)
 
-    return Response.json({ success: true });
+    return Response.json({ user: newUser }, { status: 201 });
   } catch (err) {
-    console.error(err);
+    console.error("Error inserting user:", err);
     return Response.json({ error: "Insert failed" }, { status: 500 });
   }
 }
+

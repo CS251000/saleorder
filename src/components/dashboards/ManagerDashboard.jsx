@@ -1,11 +1,11 @@
 "use client";
-import React, { useState } from "react";
+
+import React, { useCallback, useEffect, useState } from "react";
 import { Button } from "../ui/button";
-import { UserPlus, Users, UserCog } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -14,182 +14,127 @@ import toast, { Toaster } from "react-hot-toast";
 import ManagerDashboardEmployees from "./ManagerDashboardEmployees";
 import AddSaleOrderForm from "../addSaleOrder";
 
+/**
+ * ManagerDashboard - expects currUser prop from parent (Home)
+ * currUser is the DB user object you store for the logged-in Clerk user.
+ */
 export default function ManagerDashboard({ currUser }) {
+  const [employees, setEmployees] = useState([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
+
+  // Add employee form state
   const [employeeId, setEmployeeId] = useState("");
-  const [partyName, setPartyName] = useState("");
-  const [agentName, setAgentName] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [savingEmployee, setSavingEmployee] = useState(false);
+  const [empDialogOpen, setEmpDialogOpen] = useState(false);
 
-  const userAddedNotify = (msg) => toast.success(msg);
+  // Resolve manager id (support either currUser.id or currUser.clerkId if needed)
+  const managerId = currUser?.id ?? currUser?.clerkId ?? null;
 
-const handleSave = async (type) => {
-  // VALIDATE BEFORE setLoading
-  if (type === "employee") {
+  const fetchEmployees = useCallback(async () => {
+    if (!managerId) {
+      setEmployees([]);
+      return;
+    }
+    setLoadingEmployees(true);
+    setFetchError(null);
+    try {
+      const res = await fetch(`/api/employees?managerId=${encodeURIComponent(managerId)}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || `Failed to fetch employees (${res.status})`);
+      }
+      const data = await res.json();
+      // API may return array or { employees: [...] } — normalize
+      const list = Array.isArray(data) ? data : data.employees ?? [];
+      setEmployees(list);
+    } catch (err) {
+      console.error("fetchEmployees error:", err);
+      setFetchError(err.message || "Failed to load employees");
+      setEmployees([]);
+    } finally {
+      setLoadingEmployees(false);
+    }
+  }, [managerId]);
+
+  // fetch on mount / whenever managerId changes
+  useEffect(() => {
+    if (managerId) fetchEmployees();
+  }, [managerId, fetchEmployees]);
+
+  // Save employee and refresh list on success
+  const handleSaveEmployee = async () => {
     if (!employeeId.trim()) {
       toast.error("Employee ID is required");
       return;
     }
-    if (!currUser?.id) {
-      toast.error("Manager ID missing (not signed in)");
+    if (!managerId) {
+      toast.error("Manager ID missing");
       return;
     }
-  } else if (type === "party") {
-    if (!partyName.trim()) {
-      toast.error("Party name is required");
-      return;
+
+    setSavingEmployee(true);
+    try {
+      const body = { employeeId: employeeId.trim(), managerId };
+      const res = await fetch("/api/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data?.error || `Failed to add employee (${res.status})`);
+      }
+
+      toast.success("Employee added successfully!");
+      // reset + close dialog
+      setEmployeeId("");
+      setEmpDialogOpen(false);
+
+      // re-fetch so the new employee appears immediately
+      await fetchEmployees();
+    } catch (err) {
+      console.error("add employee error:", err);
+      toast.error(err.message || "Failed to add employee");
+    } finally {
+      setSavingEmployee(false);
     }
-    if (!currUser?.id) {
-      toast.error("Manager ID missing (not signed in)");
-      return;
-    }
-  } else if (type === "agent") {
-    if (!agentName.trim()) {
-      toast.error("Agent name is required");
-      return;
-    }
-    if (!currUser?.id) {
-      toast.error("Manager ID missing (not signed in)");
-      return;
-    }
+  };
+
+  // Guard UI if parent didn't pass currUser
+  if (!currUser) {
+    return (
+      <div className="p-6">
+        <p className="text-center text-gray-600">No manager found. Please sign in.</p>
+      </div>
+    );
   }
 
-  setLoading(true);
-  try {
-    let url = "";
-    let body = {};
-
-    if (type === "employee") {
-      url = "/api/employees";
-      body = { employeeId: employeeId.trim(), managerId: currUser.id };
-    } else if (type === "party") {
-      url = "/api/parties";
-      body = { partyName: partyName.trim(), managerId: currUser.id };
-    } else if (type === "agent") {
-      url = "/api/agents";
-      body = { agentName: agentName.trim(), managerId: currUser.id };
-    }
-
-    console.log("Sending to", url, body); // helpful while debugging
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      // show message returned by server if available
-      throw new Error(data?.error || `Failed to add ${type}`);
-    }
-
-    userAddedNotify(`${type} added successfully!`);
-
-    // reset appropriate fields
-    if (type === "employee") setEmployeeId("");
-    if (type === "party") setPartyName("");
-    if (type === "agent") setAgentName("");
-  } catch (err) {
-    console.error("handleSave error:", err);
-    toast.error(err.message || "Failed to add item");
-  } finally {
-    setLoading(false);
-  }
-};
-
+  // prepare a lightweight currUser object for AddSaleOrderForm if that component expects a shape
+  const saleOrderUser = {
+    id: currUser.id ?? currUser.clerkId,
+    username: currUser.username,
+    firstName: currUser.firstName,
+    lastName: currUser.lastName,
+  };
 
   return (
     <div className="relative w-full px-4 sm:px-6">
       <Toaster position="top-right" />
-      <div className="flex items-center w-full py-3 mb-10">
-        {/* Left-side Buttons */}
-        <div className="flex space-x-2">
-          {/* Add Party */}
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button className="inline-flex items-center space-x-2 px-3 py-2 text-sm">
-                <Users />
-                <span className="hidden sm:inline">Add Party</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add a new Party</DialogTitle>
-                <DialogDescription>Enter the Party Name below.</DialogDescription>
-              </DialogHeader>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSave("party");
-                }}
-                className="space-y-4"
-              >
-                <input
-                  type="text"
-                  placeholder="Party Name"
-                  value={partyName}
-                  onChange={(e) => setPartyName(e.target.value)}
-                  className="w-full px-3 py-2 border rounded"
-                />
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setPartyName("")}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={loading}>
-                    {loading ? "Saving..." : "Save"}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
 
-          {/* Add Agent */}
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button className="inline-flex items-center space-x-2 px-3 py-2 text-sm">
-                <UserCog />
-                <span className="hidden sm:inline">Add Agent</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add a new Agent</DialogTitle>
-                <DialogDescription>Enter the Agent name below.</DialogDescription>
-              </DialogHeader>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSave("agent");
-                }}
-                className="space-y-4"
-              >
-                <input
-                  type="text"
-                  placeholder="Agent Name"
-                  value={agentName}
-                  onChange={(e) => setAgentName(e.target.value)}
-                  className="w-full px-3 py-2 border rounded"
-                />
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setAgentName("")}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={loading}>
-                    {loading ? "Saving..." : "Save"}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+      <div className="flex items-center w-full py-3 mb-10">
+        {/* Left-side: Add Sale Order */}
+        <div className="flex space-x-2">
+          <AddSaleOrderForm
+            currUser={saleOrderUser}
+            onCreated={() => {
+              toast.success("Sale order added — refresh where needed.");
+            }}
+            triggerLabel="Add Sale Order"
+            triggerClassName="inline-flex items-center space-x-2 px-3 py-2 text-sm"
+          />
         </div>
 
         {/* Centered Title */}
@@ -201,16 +146,17 @@ const handleSave = async (type) => {
           Manager
         </h1>
 
-        {/* Right-side Add Employee + Add Sale Order */}
+        {/* Right-side: Add Employee */}
         <div className="ml-auto flex items-center gap-3">
-          {/* Add Employee */}
-          <Dialog>
+          <Dialog open={empDialogOpen} onOpenChange={setEmpDialogOpen}>
             <DialogTrigger asChild>
               <Button className="hidden sm:inline-flex items-center space-x-2 px-4 py-2 text-sm md:text-base">
                 <UserPlus />
                 <span>Add New Employee</span>
               </Button>
             </DialogTrigger>
+
+            {/* mobile trigger */}
             <DialogTrigger asChild>
               <Button
                 className="sm:hidden inline-flex items-center justify-center p-2"
@@ -223,12 +169,13 @@ const handleSave = async (type) => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add a new Employee</DialogTitle>
-                <DialogDescription>Enter the Employee ID below.</DialogDescription>
+                <p className="text-sm text-gray-500">Enter the Employee ID below.</p>
               </DialogHeader>
+
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  handleSave("employee");
+                  handleSaveEmployee();
                 }}
                 className="space-y-4"
               >
@@ -243,32 +190,34 @@ const handleSave = async (type) => {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setEmployeeId("")}
+                    onClick={() => {
+                      setEmployeeId("");
+                      setEmpDialogOpen(false);
+                    }}
+                    disabled={savingEmployee}
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={loading}>
-                    {loading ? "Saving..." : "Save"}
+                  <Button type="submit" disabled={savingEmployee}>
+                    {savingEmployee ? "Saving..." : "Save"}
                   </Button>
                 </div>
               </form>
             </DialogContent>
           </Dialog>
-
-          {/* Add Sale Order Button (opens form dialog from AddSaleOrderForm) */}
-          <AddSaleOrderForm
-            currUser={currUser}
-            onCreated={() => {
-              // optionally refresh employees list or other state here
-              toast.success("Sale order added — refresh where needed.");
-            }}
-            triggerLabel="Add Sale Order"
-            triggerClassName="inline-flex items-center gap-2 px-3 py-2 text-sm"
-          />
         </div>
       </div>
 
-      <ManagerDashboardEmployees currUser={currUser} />
+      {/* Employees list */}
+      <ManagerDashboardEmployees
+        employees={employees}
+        loading={loadingEmployees}
+        managerName={currUser.username ?? `${currUser.firstName ?? ""} ${currUser.lastName ?? ""}`.trim()}
+      />
+
+      {fetchError ? (
+        <div className="mt-4 text-sm text-red-500">Error: {fetchError}</div>
+      ) : null}
     </div>
   );
 }
