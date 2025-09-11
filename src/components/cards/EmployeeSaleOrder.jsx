@@ -86,11 +86,17 @@ export default function EmployeeSaleOrder({ SaleOrder, onDispatched }) {
   const pendingDisplay = SaleOrder.pendingCase ?? SaleOrder.pending_case ?? 0;
 
   return (
-    <>
-      <Card className="max-w-sm mx-auto shadow-lg rounded-2xl">
+    <div className="h-full flex flex-col">
+      <Card className="w-full h-full shadow-lg rounded-2xl">
         <CardContent className="space-y-3 text-gray-700">
           <div className="flex justify-between">
-            <span className="font-medium text-[#415A77]">Order Date:</span>
+            <span className="font-medium text-[#415A77]">Order Number:</span>
+            <span className="font-bold text-[#1B263B]">
+              {SaleOrder.orderNumber || "N/A"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="font-medium text-[#415A77]">Date:</span>
             <span className="font-bold text-[#1B263B]">
               {formattedDate(SaleOrder.orderDate)}
             </span>
@@ -189,6 +195,6 @@ export default function EmployeeSaleOrder({ SaleOrder, onDispatched }) {
           </form>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

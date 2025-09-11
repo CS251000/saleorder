@@ -37,6 +37,7 @@ import {
 export default function AddSaleOrderForm({
   currUser,
   onCreated,
+  employeeDashboard,
   triggerLabel = "Add Sale Order",
   triggerClassName = "flex items-center gap-2",
 }) {
@@ -66,6 +67,7 @@ export default function AddSaleOrderForm({
 
   // order form
   const [employeeId, setEmployeeId] = useState("");
+  const [orderNumber, setOrderNumber] = useState("");
   const [orderDate, setOrderDate] = useState("");
   const [totalCases, setTotalCases] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -96,14 +98,22 @@ export default function AddSaleOrderForm({
 
         if (!mounted) return;
 
-        setParties(pData?.parties ?? (Array.isArray(pData) ? pData : pData ?? []));
-        setAgents(aData?.agents ?? (Array.isArray(aData) ? aData : aData ?? []));
+        setParties(
+          pData?.parties ?? (Array.isArray(pData) ? pData : pData ?? [])
+        );
+        setAgents(
+          aData?.agents ?? (Array.isArray(aData) ? aData : aData ?? [])
+        );
         setEmployees(
           eData?.employees ?? (Array.isArray(eData) ? eData : eData ?? [])
         );
 
         // default date to today on open
         setOrderDate((d) => d || todayString());
+        if (employeeDashboard && currUser?.id) {
+          setEmployeeId(currUser.id);
+        }
+        console.log("dashboard", employeeDashboard, currUser?.id);
       } catch (err) {
         console.error("fetch error:", err);
         toast.error("Could not load parties/agents/employees");
@@ -114,7 +124,7 @@ export default function AddSaleOrderForm({
     return () => {
       mounted = false;
     };
-  }, [open]);
+  }, [open, currUser?.id, employeeDashboard]);
 
   // close dropdowns when clicking outside
   useEffect(() => {
@@ -140,6 +150,7 @@ export default function AddSaleOrderForm({
     setEmployeeId("");
     setTotalCases("");
     setOrderDate("");
+    setOrderNumber("");
     setSubmitting(false);
   };
 
@@ -183,7 +194,10 @@ export default function AddSaleOrderForm({
 
   // create helpers
   const createParty = async (name) => {
-    const payload = { partyName: name, managerId: currUser?.id ?? currUser?.clerkId ?? null };
+    const payload = {
+      partyName: name,
+      managerId: currUser?.id ?? currUser?.clerkId ?? null,
+    };
     const res = await fetch("/api/parties", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -198,7 +212,10 @@ export default function AddSaleOrderForm({
   };
 
   const createAgent = async (name) => {
-    const payload = { agentName: name, managerId: currUser?.id ?? currUser?.clerkId ?? null };
+    const payload = {
+      agentName: name,
+      managerId: currUser?.id ?? currUser?.clerkId ?? null,
+    };
     const res = await fetch("/api/agents", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -238,7 +255,8 @@ export default function AddSaleOrderForm({
           finalPartyId = existing.partyId ?? existing.id ?? existing.party_id;
         } else {
           const created = await createParty(partyName.trim());
-          finalPartyId = created.partyId ?? created.id ?? created.party_id ?? null;
+          finalPartyId =
+            created.partyId ?? created.id ?? created.party_id ?? null;
           if (finalPartyId) setParties((prev) => [created, ...prev]);
         }
       }
@@ -250,7 +268,8 @@ export default function AddSaleOrderForm({
           finalAgentId = existing.agentId ?? existing.id ?? existing.agent_id;
         } else {
           const created = await createAgent(agentName.trim());
-          finalAgentId = created.agentId ?? created.id ?? created.agent_id ?? null;
+          finalAgentId =
+            created.agentId ?? created.id ?? created.agent_id ?? null;
           if (finalAgentId) setAgents((prev) => [created, ...prev]);
         }
       }
@@ -264,6 +283,7 @@ export default function AddSaleOrderForm({
         agentId: finalAgentId,
         staff: employeeId,
         totalCases: Number(totalCases),
+        orderNumber: orderNumber,
         orderStatus: "Pending",
       };
 
@@ -358,6 +378,18 @@ export default function AddSaleOrderForm({
         </DialogHeader>
 
         <form onSubmit={handleCreateOrder} className="space-y-4 mt-2">
+          {/* Order Number */}
+          <div>
+            <Label htmlFor="order-number">Order Number</Label>
+            <Input
+              id="order-number"
+              type="text"
+              value={orderNumber}
+              onChange={(e) => setOrderNumber(e.target.value)}
+              className="mt-1"
+              placeholder="Add Order Number"
+            />
+          </div>
           {/* PARTY combobox (opens only when clicked/focused) */}
           <div ref={partyRef} className="bg-gray-300 rounded-3xl w-full p-3">
             <Label htmlFor="party">Party</Label>
@@ -389,7 +421,8 @@ export default function AddSaleOrderForm({
                         >
                           <div className="flex items-center justify-between w-full">
                             <span>{label}</span>
-                            {partyId && partyId === (p.partyId ?? p.id ?? "") ? (
+                            {partyId &&
+                            partyId === (p.partyId ?? p.id ?? "") ? (
                               <Check className="h-4 w-4 text-green-500" />
                             ) : null}
                           </div>
@@ -397,13 +430,16 @@ export default function AddSaleOrderForm({
                       );
                     })}
 
-                    {partyQuery.trim().length > 0 && !findPartyByLabel(partyQuery) && (
-                      <CommandItem onSelect={() => chooseCreateParty(partyQuery)}>
-                        <div className="flex items-center justify-between w-full">
-                          <span>Create new party “{partyQuery}”</span>
-                        </div>
-                      </CommandItem>
-                    )}
+                    {partyQuery.trim().length > 0 &&
+                      !findPartyByLabel(partyQuery) && (
+                        <CommandItem
+                          onSelect={() => chooseCreateParty(partyQuery)}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span>Create new party “{partyQuery}”</span>
+                          </div>
+                        </CommandItem>
+                      )}
                   </CommandList>
                 )}
               </Command>
@@ -456,7 +492,8 @@ export default function AddSaleOrderForm({
                         >
                           <div className="flex items-center justify-between w-full">
                             <span>{label}</span>
-                            {agentId && agentId === (a.agentId ?? a.id ?? "") ? (
+                            {agentId &&
+                            agentId === (a.agentId ?? a.id ?? "") ? (
                               <Check className="h-4 w-4 text-green-500" />
                             ) : null}
                           </div>
@@ -464,13 +501,16 @@ export default function AddSaleOrderForm({
                       );
                     })}
 
-                    {agentQuery.trim().length > 0 && !findAgentByLabel(agentQuery) && (
-                      <CommandItem onSelect={() => chooseCreateAgent(agentQuery)}>
-                        <div className="flex items-center justify-between w-full">
-                          <span>Create new agent “{agentQuery}”</span>
-                        </div>
-                      </CommandItem>
-                    )}
+                    {agentQuery.trim().length > 0 &&
+                      !findAgentByLabel(agentQuery) && (
+                        <CommandItem
+                          onSelect={() => chooseCreateAgent(agentQuery)}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span>Create new agent “{agentQuery}”</span>
+                          </div>
+                        </CommandItem>
+                      )}
                   </CommandList>
                 )}
               </Command>
@@ -489,14 +529,22 @@ export default function AddSaleOrderForm({
                 </button>
               </div>
             ) : (
-              <p className="text-xs text-gray-500 mt-1">Pick an agent (click the field).</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Pick an agent (click the field).
+              </p>
             )}
           </div>
 
           {/* EMPLOYEE select */}
+          {/* EMPLOYEE select */}
           <div>
             <Label htmlFor="employee-select">Employee</Label>
-            <Select onValueChange={(val) => setEmployeeId(val)} value={employeeId}>
+
+            <Select
+              onValueChange={(val) => setEmployeeId(val)}
+              value={employeeId}
+              disabled={employeeDashboard} 
+            >
               <SelectTrigger id="employee-select" className="mt-1">
                 <SelectValue placeholder="— choose an employee —" />
               </SelectTrigger>

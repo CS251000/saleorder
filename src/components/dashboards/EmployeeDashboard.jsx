@@ -17,9 +17,11 @@ export default function EmployeeDashboard({ currUser }) {
   const { user, isLoaded } = useUser();
   const [role, setRole] = useState("");
 
-  const getId = (o) => o?.id ?? o?.sales_order_id ?? o?.salesOrderId ?? o?.orderId ?? o?.order_id;
+  const getId = (o) =>
+    o?.id ?? o?.sales_order_id ?? o?.salesOrderId ?? o?.orderId ?? o?.order_id;
   const getStatus = (o) => o?.orderStatus ?? o?.status ?? o?.order_status;
-  const getPending = (o) => Number(o?.pendingCase ?? o?.pending_case ?? o?.pending ?? 0);
+  const getPending = (o) =>
+    Number(o?.pendingCase ?? o?.pending_case ?? o?.pending ?? 0);
 
   const partitionFromOrders = useCallback((orders) => {
     const pending = orders.filter((o) => {
@@ -75,7 +77,8 @@ export default function EmployeeDashboard({ currUser }) {
   // called by child with the updated order object (returned by server)
   const handleOnDispatched = async (updatedOrderOrId) => {
     // sometimes child may pass only id; if so, refetch full list
-    const updatedOrder = typeof updatedOrderOrId === "object" ? updatedOrderOrId : null;
+    const updatedOrder =
+      typeof updatedOrderOrId === "object" ? updatedOrderOrId : null;
     if (!updatedOrder) {
       // fallback: refetch whole list
       await fetchSalesOrders();
@@ -92,7 +95,9 @@ export default function EmployeeDashboard({ currUser }) {
     setSalesOrders((prev) => {
       const found = prev.some((o) => String(getId(o)) === String(updatedId));
       const newList = found
-        ? prev.map((o) => (String(getId(o)) === String(updatedId) ? updatedOrder : o))
+        ? prev.map((o) =>
+            String(getId(o)) === String(updatedId) ? updatedOrder : o
+          )
         : [updatedOrder, ...prev];
 
       // recalc partitions and set them
@@ -138,6 +143,7 @@ export default function EmployeeDashboard({ currUser }) {
           <AddSaleOrderForm
             currUser={currUser}
             onCreated={fetchSalesOrders}
+            employeeDashboard={true}
             triggerLabel="Add Sale Order"
             triggerClassName="flex items-center gap-2"
           />
@@ -155,19 +161,22 @@ export default function EmployeeDashboard({ currUser }) {
       </Card>
 
       {/* Orders Grid */}
-      <div className="flex flex-col lg:flex-row gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {showPending &&
           pendingOrders.map((order) => (
-            <EmployeeSaleOrder
-              key={getId(order)}
-              SaleOrder={order}
-              onDispatched={handleOnDispatched}
-            />
+            <div key={getId(order)} className="h-full">
+              <EmployeeSaleOrder
+                SaleOrder={order}
+                onDispatched={handleOnDispatched}
+              />
+            </div>
           ))}
 
         {!showPending &&
           completedOrders.map((order) => (
-            <EmployeeSaleOrder key={getId(order)} SaleOrder={order} />
+            <div key={getId(order)} className="h-full">
+              <EmployeeSaleOrder SaleOrder={order} />
+            </div>
           ))}
       </div>
     </div>

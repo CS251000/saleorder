@@ -36,6 +36,7 @@ export const party= pgTable("party",{
 
 export const saleOrder= pgTable("sales_order",{
   id:uuid("sales_order_id").default(sql`gen_random_uuid()`).primaryKey(),
+  orderNumber: varchar("order_number"),
   employeeId: uuid("employee_id").references(() => employees.id),
   orderDate: date("order_date").defaultNow(),
   agentId: uuid("agent_id").references(() => agents.id),

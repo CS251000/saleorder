@@ -15,6 +15,7 @@ export async function GET(req) {
     const salesOrders = await db
       .select({
         id: saleOrder.id,
+        orderNumber: saleOrder.orderNumber,
         orderDate: saleOrder.orderDate,
         partyName: party.name,
         agentName: agents.name,
@@ -41,6 +42,7 @@ export async function POST(req) {
     const body = await req.json();
     const {
       orderDate,
+      orderNumber,
       partyId,
       agentId,
       employeeId, // must be employees.id (PK)
@@ -64,6 +66,7 @@ export async function POST(req) {
       .insert(saleOrder)
       .values({
         orderDate,
+        orderNumber,
         partyId,
         agentId,
         staff, // FK to users.id
@@ -86,7 +89,6 @@ export async function POST(req) {
     return NextResponse.json({ message: "Sale order created", saleOrder: newOrder[0] }, { status: 201 });
   } catch (err) {
     console.error("POST /api/sales-orders error:", err);
-    // If this is still a FK error, log to see which FK failed
     return NextResponse.json({ error: "Failed to create sale order" }, { status: 500 });
   }
 }

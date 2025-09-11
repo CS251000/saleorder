@@ -129,6 +129,7 @@ export default function ManagerDashboard({ currUser }) {
         <div className="flex space-x-2">
           <AddSaleOrderForm
             currUser={saleOrderUser}
+            employeeDashboard={false}
             onCreated={() => {
               toast.success("Sale order added — refresh where needed.");
             }}

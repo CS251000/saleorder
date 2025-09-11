@@ -71,6 +71,13 @@
       "when": 1757306121767,
       "tag": "0009_wooden_machine_man",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1757601949661,
+      "tag": "0010_glossy_onslaught",
+      "breakpoints": true
     }
   ]
 }
