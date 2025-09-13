@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { party } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
-export async function GET() {
+export async function GET(req) {
+  const {searchParams} = new URL(req.url);
+  const managerId = searchParams.get("managerId");
   try {
     const parties = await db.select({
       partyId: party.id,
       partyName: party.name,
-    }).from(party);
+    }).from(party).where(eq(party.managerId, managerId));
     return NextResponse.json({ parties });
   } catch (error) {
     console.error("Error fetching parties:", error);
@@ -16,7 +19,7 @@ export async function GET() {
 }
 
 export async function POST(req) {
-  const { partyName } = await req.json();
+  const { partyName,managerId } = await req.json();
 
   if (!partyName) {
     return NextResponse.json(
@@ -28,10 +31,14 @@ export async function POST(req) {
   try {
     const newParty = await db
       .insert(party)
-      .values({ name: partyName })
+      .values({ 
+        name: partyName, 
+        managerId : managerId
+      })
       .returning({
         partyId: party.id,
         partyName: party.name,
+        managerId: party.managerId
       })
       .then((res) => res[0]);
     return NextResponse.json({ party: newParty });

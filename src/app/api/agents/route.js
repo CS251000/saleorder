@@ -1,17 +1,21 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { agents } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
-export async function GET() {
+export async function GET(req) {
+  const {searchParams} = new URL(req.url);
+  const managerId = searchParams.get("managerId");
   try {
     const agentsList = await db
       .select({
         agentId: agents.id,
         agentName: agents.name,
       })
-      .from(agents);
+      .from(agents)
+      .where(eq(agents.managerId, managerId));
 
-    return NextResponse.json({ agents: agentsList }); // ✅ standardized key
+    return NextResponse.json({ agents: agentsList }); 
   } catch (error) {
     console.error("Error fetching agents:", error);
     return NextResponse.json(
@@ -34,10 +38,11 @@ export async function POST(req) {
   try {
     const newAgent = await db
       .insert(agents)
-      .values({ name: agentName})
+      .values({ name: agentName,managerId:managerId })
       .returning({
         agentId: agents.id,
         agentName: agents.name,
+        managerId: agents.managerId
       })
       .then((res) => res[0]);
     return NextResponse.json({ agent: newAgent });

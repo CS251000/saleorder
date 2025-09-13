@@ -31,9 +31,6 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 
-/**
- * AddSaleOrderForm (dropdowns open only on click/focus)
- */
 export default function AddSaleOrderForm({
   currUser,
   onCreated,
@@ -81,9 +78,9 @@ export default function AddSaleOrderForm({
     async function fetchAll() {
       try {
         const [pRes, aRes, eRes] = await Promise.all([
-          fetch("/api/parties"),
-          fetch("/api/agents"),
-          fetch("/api/employees"),
+          fetch(`/api/parties?managerId=${currUser?.id ?? currUser?.clerkId ?? null}`),
+          fetch(`/api/agents?managerId=${currUser?.id ?? currUser?.clerkId ?? null}`),
+          fetch(`/api/employees?managerId=${currUser?.id ?? currUser?.clerkId ?? null}`),
         ]);
 
         if (!pRes.ok || !aRes.ok || !eRes.ok) {
@@ -217,6 +214,7 @@ export default function AddSaleOrderForm({
       managerId: currUser?.id ?? currUser?.clerkId ?? null,
     };
     const res = await fetch("/api/agents", {
+      
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

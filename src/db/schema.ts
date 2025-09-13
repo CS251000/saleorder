@@ -27,11 +27,13 @@ export const employees = pgTable("employees", {
 
 export const agents= pgTable("agents",{
   id:uuid("agent_id").default(sql`gen_random_uuid()`).primaryKey(),
-  name:text("name")
+  name:text("name"),
+  managerId: uuid("manager_id").references(() => users.id),
 })
 export const party= pgTable("party",{
   id:uuid("party_id").default(sql`gen_random_uuid()`).primaryKey(),
   name:text("name"),
+  managerId: uuid("manager_id").references(() => users.id),
 })
 
 export const saleOrder= pgTable("sales_order",{

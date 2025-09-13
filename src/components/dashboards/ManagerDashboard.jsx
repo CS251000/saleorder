@@ -112,7 +112,6 @@ export default function ManagerDashboard({ currUser }) {
     );
   }
 
-  // prepare a lightweight currUser object for AddSaleOrderForm if that component expects a shape
   const saleOrderUser = {
     id: currUser.id ?? currUser.clerkId,
     username: currUser.username,
