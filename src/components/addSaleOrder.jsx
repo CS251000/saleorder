@@ -34,6 +34,7 @@ import {
 export default function AddSaleOrderForm({
   currUser,
   onCreated,
+  managerId,
   employeeDashboard,
   triggerLabel = "Add Sale Order",
   triggerClassName = "flex items-center gap-2",
@@ -78,9 +79,9 @@ export default function AddSaleOrderForm({
     async function fetchAll() {
       try {
         const [pRes, aRes, eRes] = await Promise.all([
-          fetch(`/api/parties?managerId=${currUser?.id ?? currUser?.clerkId ?? null}`),
-          fetch(`/api/agents?managerId=${currUser?.id ?? currUser?.clerkId ?? null}`),
-          fetch(`/api/employees?managerId=${currUser?.id ?? currUser?.clerkId ?? null}`),
+          fetch(`/api/parties?managerId=${managerId}`),
+          fetch(`/api/agents?managerId=${managerId}`),
+          fetch(`/api/employees?managerId=${managerId}`),
         ]);
 
         if (!pRes.ok || !aRes.ok || !eRes.ok) {
@@ -101,16 +102,21 @@ export default function AddSaleOrderForm({
         setAgents(
           aData?.agents ?? (Array.isArray(aData) ? aData : aData ?? [])
         );
-        setEmployees(
-          eData?.employees ?? (Array.isArray(eData) ? eData : eData ?? [])
-        );
+        if (!employeeDashboard){
+          setEmployees(
+            eData?.employees ?? (Array.isArray(eData) ? eData : eData ?? [])
+          );
+        }else{
+          setEmployees([currUser]);
+        }
+          
 
         // default date to today on open
         setOrderDate((d) => d || todayString());
         if (employeeDashboard && currUser?.id) {
           setEmployeeId(currUser.id);
         }
-        console.log("dashboard", employeeDashboard, currUser?.id);
+        // console.log("dashboard", employeeDashboard, currUser?.id);
       } catch (err) {
         console.error("fetch error:", err);
         toast.error("Could not load parties/agents/employees");
@@ -121,7 +127,7 @@ export default function AddSaleOrderForm({
     return () => {
       mounted = false;
     };
-  }, [open, currUser?.id, employeeDashboard]);
+  }, [open, managerId, employeeDashboard]);
 
   // close dropdowns when clicking outside
   useEffect(() => {
@@ -193,7 +199,7 @@ export default function AddSaleOrderForm({
   const createParty = async (name) => {
     const payload = {
       partyName: name,
-      managerId: currUser?.id ?? currUser?.clerkId ?? null,
+      managerId: managerId,
     };
     const res = await fetch("/api/parties", {
       method: "POST",
@@ -211,7 +217,7 @@ export default function AddSaleOrderForm({
   const createAgent = async (name) => {
     const payload = {
       agentName: name,
-      managerId: currUser?.id ?? currUser?.clerkId ?? null,
+      managerId: managerId,
     };
     const res = await fetch("/api/agents", {
       
@@ -541,7 +547,7 @@ export default function AddSaleOrderForm({
             <Select
               onValueChange={(val) => setEmployeeId(val)}
               value={employeeId}
-              disabled={employeeDashboard} 
+              // disabled={employeeDashboard} 
             >
               <SelectTrigger id="employee-select" className="mt-1">
                 <SelectValue placeholder="— choose an employee —" />

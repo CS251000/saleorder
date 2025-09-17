@@ -20,7 +20,7 @@ function EmployeeDashboardContent() {
         const res = await fetch(`/api/user?userId=${employeeId}`);
         const data = await res.json();
         // console.log("data", data);
-        setCurrUser(data.currentUser);
+        setCurrUser(data.currentUser);//employee details
       } catch (err) {
         console.error(err);
       }

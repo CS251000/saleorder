@@ -6,8 +6,8 @@ import { Switch } from "../ui/switch";
 import { Card, CardHeader, CardTitle } from "../ui/card";
 import toast from "react-hot-toast";
 import { useUser } from "@clerk/nextjs";
-
 import AddSaleOrderForm from "../addSaleOrder";
+import { Input } from "../ui/input";
 
 export default function EmployeeDashboard({ currUser }) {
   const [salesOrders, setSalesOrders] = useState([]);
@@ -16,24 +16,48 @@ export default function EmployeeDashboard({ currUser }) {
   const [showPending, setShowPending] = useState(true);
   const { user, isLoaded } = useUser();
   const [role, setRole] = useState("");
+  const [managerId,setManagerId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const getId = (o) =>
-    o?.id ?? o?.sales_order_id ?? o?.salesOrderId ?? o?.orderId ?? o?.order_id;
-  const getStatus = (o) => o?.orderStatus ?? o?.status ?? o?.order_status;
   const getPending = (o) =>
     Number(o?.pendingCase ?? o?.pending_case ?? o?.pending ?? 0);
 
   const partitionFromOrders = useCallback((orders) => {
     const pending = orders.filter((o) => {
-      const st = getStatus(o);
+      const st = o.orderStatus;
       return st === undefined ? getPending(o) > 0 : st === "Pending";
     });
     const completed = orders.filter((o) => {
-      const st = getStatus(o);
+      const st = o.orderStatus;
       return st === "Dispatched" || getPending(o) === 0;
     });
     return { pending, completed };
   }, []);
+
+  // search logic
+  useEffect(()=>{
+    if(!searchTerm || searchTerm.trim()===""){
+      // reset to all orders
+      const {pending,completed} = partitionFromOrders(salesOrders);
+      setPendingOrders(pending);
+      setCompletedOrders(completed);
+      return;
+    }
+    const lowerTerm = searchTerm.trim().toLowerCase();
+    const filtered = salesOrders.filter(o=>{
+      const ordernumber = o.orderNumber
+      const partyName = o.partyName || "";
+      const agentName = o.agentName || "";
+      return (ordernumber && String(ordernumber).toLowerCase().includes(lowerTerm)) ||
+        (partyName && partyName.toLowerCase().includes(lowerTerm)) ||
+        (agentName && agentName.toLowerCase().includes(lowerTerm));
+    });
+    const {pending,completed} = partitionFromOrders(filtered);
+    setPendingOrders(pending);
+    setCompletedOrders(completed);
+  },[searchTerm, salesOrders, partitionFromOrders]);
+
+
 
   const fetchSalesOrders = useCallback(async () => {
     if (!currUser?.id) return;
@@ -43,7 +67,7 @@ export default function EmployeeDashboard({ currUser }) {
       );
       if (!res.ok) throw new Error("Failed to fetch sales orders");
       const data = await res.json();
-      const all = data.salesOrders || data?.sales_orders || data || [];
+      const all = data.salesOrders || [];
       setSalesOrders(all);
 
       const { pending, completed } = partitionFromOrders(all);
@@ -62,6 +86,18 @@ export default function EmployeeDashboard({ currUser }) {
         const res = await fetch(`/api/user?id=${user.id}`);
         const data = await res.json();
         setRole(data.currentUser?.role ?? "");
+        if(data.currentUser.role === "Employee"){
+          // get managerId
+          try {
+            const res = await fetch(`/api/(users)/manager?employeeId=${currUser.id}`);
+            const data = await res.json();
+            setManagerId(data?.managerId ?? null);
+          } catch (error) {
+            console.error("Error fetching manager ID:", error);
+          }
+        }else{
+          setManagerId(data.currentUser?.id);
+        }
       } catch (error) {
         console.error("Error fetching user role:", error);
       }
@@ -85,7 +121,7 @@ export default function EmployeeDashboard({ currUser }) {
       return;
     }
 
-    const updatedId = getId(updatedOrder);
+    const updatedId = updatedOrder.id;
     if (!updatedId) {
       await fetchSalesOrders();
       return;
@@ -93,10 +129,10 @@ export default function EmployeeDashboard({ currUser }) {
 
     // Replace the row in salesOrders (if found) or append if not present
     setSalesOrders((prev) => {
-      const found = prev.some((o) => String(getId(o)) === String(updatedId));
+      const found = prev.some((o) => String(o.id) === String(updatedId));
       const newList = found
         ? prev.map((o) =>
-            String(getId(o)) === String(updatedId) ? updatedOrder : o
+            String(o.id) === String(updatedId) ? updatedOrder : o
           )
         : [updatedOrder, ...prev];
 
@@ -143,11 +179,30 @@ export default function EmployeeDashboard({ currUser }) {
           <AddSaleOrderForm
             currUser={currUser}
             onCreated={fetchSalesOrders}
+            managerId={managerId}
             employeeDashboard={true}
             triggerLabel="Add Sale Order"
             triggerClassName="flex items-center gap-2"
           />
         </div>
+      </div>
+
+      <div className="relative w-80 mx-auto">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="absolute top-0 bottom-0 w-6 h-6 my-auto text-gray-500 left-3"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
+        <Input type="text" placeholder="Search" className="pl-12 pr-4" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
       </div>
 
       {/* Orders Header */}
@@ -164,7 +219,7 @@ export default function EmployeeDashboard({ currUser }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {showPending &&
           pendingOrders.map((order) => (
-            <div key={getId(order)} className="h-full">
+            <div key={order.id} className="h-full">
               <EmployeeSaleOrder
                 SaleOrder={order}
                 onDispatched={handleOnDispatched}
@@ -174,7 +229,7 @@ export default function EmployeeDashboard({ currUser }) {
 
         {!showPending &&
           completedOrders.map((order) => (
-            <div key={getId(order)} className="h-full">
+            <div key={order.id} className="h-full">
               <EmployeeSaleOrder SaleOrder={order} />
             </div>
           ))}
