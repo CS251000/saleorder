@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import toast from "react-hot-toast";
 import { formattedDate } from "@/lib/constants";
 
-export default function EmployeeSaleOrder({ SaleOrder, onDispatched }) {
+export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,handleDeleteOrder }) {
   const [open, setOpen] = useState(false);
   const [dispatchCount, setDispatchCount] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -83,6 +83,7 @@ export default function EmployeeSaleOrder({ SaleOrder, onDispatched }) {
     }
   };
 
+
   const pendingDisplay = SaleOrder.pendingCase ?? SaleOrder.pending_case ?? 0;
 
   return (
@@ -127,7 +128,16 @@ export default function EmployeeSaleOrder({ SaleOrder, onDispatched }) {
           </div>
         </CardContent>
 
-        <CardFooter className="flex justify-end">
+        <CardFooter className="flex justify-between">
+          {userRole==="Manager" && (
+          <Button variant={'outline'} className={'cursor-pointer'}
+            onClick={()=>{
+              handleDeleteOrder(SaleOrder.id);
+            }}
+           >
+            Delete
+          </Button>
+          )}
           {String(SaleOrder.orderStatus ?? SaleOrder.status) === "Dispatched" ||
           Number(pendingDisplay) === 0 ? (
             <Button

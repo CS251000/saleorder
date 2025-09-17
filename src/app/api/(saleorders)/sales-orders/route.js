@@ -92,3 +92,37 @@ export async function POST(req) {
     return NextResponse.json({ error: "Failed to create sale order" }, { status: 500 });
   }
 }
+
+export async function DELETE(req){
+  try{
+    const { searchParams } = new URL(req.url);
+    const orderId = searchParams.get("orderId");
+
+    if(!orderId){
+      return NextResponse.json({ error: "Order ID is required" }, { status: 400 });
+    }
+    const existingOrder = await db.select().from(saleOrder).where(eq(saleOrder.id, orderId));
+    if(existingOrder.length===0){
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    const delOrder= await db.delete(saleOrder).where(eq(saleOrder.id, orderId));
+
+    const currEmployee= await db.select().from(employees).where(eq(employees.employeeId,existingOrder[0].staff));
+
+    var pending= currEmployee[0]?.pendingOrders ?? 0;
+    pending-= existingOrder[0].pendingCase;
+
+    if(pending<0) pending=0;
+
+    const upEmployee= await db.update(employees)
+    .set({pendingOrders: pending})
+    .where(eq(employees.employeeId,existingOrder[0].staff));
+
+    return NextResponse.json({ message: "Order deleted" }, { status: 200 });
+    
+  }catch(err){
+    console.error("DELETE /api/sales-orders error:", err);
+    return NextResponse.json({ error: "Failed to delete sale order" }, { status: 500 });
+  }
+}

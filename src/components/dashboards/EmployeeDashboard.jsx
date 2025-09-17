@@ -110,24 +110,19 @@ export default function EmployeeDashboard({ currUser }) {
     fetchSalesOrders();
   }, [currUser, fetchSalesOrders]);
 
-  // called by child with the updated order object (returned by server)
   const handleOnDispatched = async (updatedOrderOrId) => {
-    // sometimes child may pass only id; if so, refetch full list
+    
     const updatedOrder =
       typeof updatedOrderOrId === "object" ? updatedOrderOrId : null;
     if (!updatedOrder) {
-      // fallback: refetch whole list
       await fetchSalesOrders();
       return;
     }
-
     const updatedId = updatedOrder.id;
     if (!updatedId) {
       await fetchSalesOrders();
       return;
     }
-
-    // Replace the row in salesOrders (if found) or append if not present
     setSalesOrders((prev) => {
       const found = prev.some((o) => String(o.id) === String(updatedId));
       const newList = found
@@ -143,11 +138,30 @@ export default function EmployeeDashboard({ currUser }) {
 
       return newList;
     });
-
     toast.success("Order updated");
   };
 
-  if (!currUser) {
+  const handleDeleteOrder = async (deleteOrderId) => {
+      if (!deleteOrderId) return;
+
+      if (!confirm("Are you sure you want to delete this order? This action cannot be undone.")) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/sales-orders?orderId=${deleteOrderId}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) throw new Error("Failed to delete order");
+        toast.success("Order deleted");
+        setSalesOrders((prev) => prev.filter((o) => String(o.id) !== String(deleteOrderId)));
+      } catch (err) {
+        console.error("Failed to delete order:", err);
+        toast.error("Failed to delete order");
+      }
+  };
+
+  if (!currUser || !isLoaded) {
     return (
       <h1 className="text-center text-xl font-semibold mt-8">Loading...</h1>
     );
@@ -223,6 +237,8 @@ export default function EmployeeDashboard({ currUser }) {
               <EmployeeSaleOrder
                 SaleOrder={order}
                 onDispatched={handleOnDispatched}
+                userRole={role}
+                handleDeleteOrder={handleDeleteOrder}
               />
             </div>
           ))}
@@ -230,7 +246,10 @@ export default function EmployeeDashboard({ currUser }) {
         {!showPending &&
           completedOrders.map((order) => (
             <div key={order.id} className="h-full">
-              <EmployeeSaleOrder SaleOrder={order} />
+              <EmployeeSaleOrder SaleOrder={order} 
+              userRole={role}
+              handleDeleteOrder={handleDeleteOrder}
+               />
             </div>
           ))}
       </div>
