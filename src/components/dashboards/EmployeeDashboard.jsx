@@ -89,9 +89,9 @@ export default function EmployeeDashboard({ currUser }) {
         if(data.currentUser.role === "Employee"){
           // get managerId
           try {
-            const res = await fetch(`/api/(users)/manager?employeeId=${currUser.id}`);
-            const data = await res.json();
-            setManagerId(data?.managerId ?? null);
+            const res = await fetch(`/api/manager?employeeId=${data.currentUser.id}`);
+            const datam = await res.json();
+            setManagerId(datam?.managerId ?? null);
           } catch (error) {
             console.error("Error fetching manager ID:", error);
           }
