@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { employees, saleOrder } from "@/db/schema";
+import { employees, saleOrder,party } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function PUT(req) {
@@ -75,6 +75,11 @@ export async function PUT(req) {
       .from(employees)
       .where(eq(employees.employeeId, staff));
 
+    const currParty= await db.select().from(party).where(eq(party.id,order.partyId));
+
+    const partyp= currParty[0]?.pendingCases ?? 0;
+    const partyd= currParty[0]?.dispatchedCases ?? 0;
+
     const currp = currEmployee[0]?.pendingOrders ?? 0;
     const currd = currEmployee[0]?.dispatchedOrders ?? 0;
 
@@ -82,6 +87,13 @@ export async function PUT(req) {
       .update(employees)
       .set({ pendingOrders: currp - dispatchCount, dispatchedOrders: currd + dispatchCount })
       .where(eq(employees.employeeId, staff));
+
+    const upParty= await db.update(party)
+      .set({
+        pendingCases: partyp - dispatchCount, 
+        dispatchedCases: partyd + dispatchCount
+      })
+      .where(eq(party.id,order.partyId));
 
     return NextResponse.json(
       { message: "Order dispatched", saleOrder: updatedOrder },

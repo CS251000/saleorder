@@ -34,6 +34,8 @@ export const party= pgTable("party",{
   id:uuid("party_id").default(sql`gen_random_uuid()`).primaryKey(),
   name:text("name"),
   managerId: uuid("manager_id").references(() => users.id),
+  pendingCases: integer("pending_cases").default(0),
+  dispatchedCases: integer("dispatched_cases").default(0)
 })
 
 export const saleOrder= pgTable("sales_order",{

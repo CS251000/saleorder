@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { UserPlus } from "lucide-react";
+import { Switch } from "../ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +14,7 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 import ManagerDashboardEmployees from "./ManagerDashboardEmployees";
 import AddSaleOrderForm from "../addSaleOrder";
+import ManagerDashboardParties from "./ManagerDashboardParties";
 
 /**
  * ManagerDashboard - expects currUser prop from parent (Home)
@@ -21,7 +23,11 @@ import AddSaleOrderForm from "../addSaleOrder";
 export default function ManagerDashboard({ currUser }) {
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [loadingParties, setLoadingParties] = useState(false);
   const [fetchError, setFetchError] = useState(null);
+  const[partyView,setPartyView]=useState(false);
+  const[parties,setParties]= useState([]);
+
 
   // Add employee form state
   const [employeeId, setEmployeeId] = useState("");
@@ -47,6 +53,7 @@ export default function ManagerDashboard({ currUser }) {
       const data = await res.json();
       // API may return array or { employees: [...] } — normalize
       const list = Array.isArray(data) ? data : data.employees ?? [];
+      list.sort((a, b) => (b.employeePendingOrders ?? 0) - (a.employeePendingOrders ?? 0));
       setEmployees(list);
     } catch (err) {
       console.error("fetchEmployees error:", err);
@@ -57,10 +64,41 @@ export default function ManagerDashboard({ currUser }) {
     }
   }, [managerId]);
 
+    const fetchParties = useCallback(async () => {
+    if (!managerId) {
+      setParties([]);
+      return;
+    }
+    setLoadingParties(true);
+    setFetchError(null);
+    try {
+      const res = await fetch(`/api/parties?managerId=${encodeURIComponent(managerId)}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || `Failed to fetch parties (${res.status})`);
+      }
+      const data = await res.json();
+      // API may return array or { employees: [...] } — normalize
+      const list = Array.isArray(data) ? data : data.parties ?? [];
+      list.sort((a, b) => (b.pendingCases ?? 0) - (a.pendingCases ?? 0));
+      setParties(list);
+    } catch (err) {
+      console.error("fetchParties error:", err);
+      setFetchError(err.message || "Failed to load parties");
+      setParties([]);
+    } finally {
+      setLoadingParties(false);
+    }
+  }, [managerId]);
+
   // fetch on mount / whenever managerId changes
   useEffect(() => {
-    if (managerId) fetchEmployees();
-  }, [managerId, fetchEmployees]);
+    if (managerId) {
+      fetchEmployees();
+      fetchParties();
+    }
+
+  }, [managerId, fetchEmployees, fetchParties]);
 
   // Save employee and refresh list on success
   const handleSaveEmployee = async () => {
@@ -148,7 +186,7 @@ export default function ManagerDashboard({ currUser }) {
         </h1>
 
         {/* Right-side: Add Employee */}
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-3 flex-col">
           <Dialog open={empDialogOpen} onOpenChange={setEmpDialogOpen}>
             <DialogTrigger asChild>
               <Button className="hidden sm:inline-flex items-center space-x-2 px-4 py-2 text-sm md:text-base">
@@ -206,16 +244,33 @@ export default function ManagerDashboard({ currUser }) {
               </form>
             </DialogContent>
           </Dialog>
+          <div>
+            <Switch 
+            checked={partyView}
+            onCheckedChange={(checked)=>setPartyView(checked)}
+           />
+           <label className="p-2">Parties</label>
+           </div>
         </div>
       </div>
 
       {/* Employees list */}
+      {!partyView&& 
       <ManagerDashboardEmployees
         employees={employees}
         loading={loadingEmployees}
         managerName={currUser.username ?? `${currUser.firstName ?? ""} ${currUser.lastName ?? ""}`.trim()}
-      />
+      /> 
+      }
 
+      {partyView&&
+      <ManagerDashboardParties
+        parties={parties}
+        loading={loadingParties}
+        managerName={currUser.username ?? `${currUser.firstName ?? ""} ${currUser.lastName ?? ""}`.trim()}
+      /> 
+       }
+      
       {fetchError ? (
         <div className="mt-4 text-sm text-red-500">Error: {fetchError}</div>
       ) : null}

@@ -4,14 +4,14 @@ import React from "react";
 import Link from "next/link";
 
 
-export default function ManagerDashboardEmployees({
-  employees = [],
+export default function ManagerDashboardParties({
+  parties = [],
   loading = false,
   managerName = "",
 }) {
   return (
     <div>
-      <h2 className="text-lg font-bold">Employees under {managerName || "you"}</h2>
+      <h2 className="text-lg font-bold">Parties under {managerName || "you"}</h2>
 
       <div className="overflow-x-auto mt-6">
         <table className="min-w-full divide-y divide-gray-100 border-solid border-separate border-spacing-y-2 ">
@@ -36,26 +36,21 @@ export default function ManagerDashboardEmployees({
             {loading ? (
               <tr>
                 <td colSpan={3} className="px-4 py-6 text-center text-lg text-gray-500 border">
-                  Loading employees...
+                  Loading parties...
                 </td>
               </tr>
-            ) : employees.length === 0 ? (
+            ) : parties.length === 0 ? (
               <tr>
                 <td colSpan={3} className="px-4 py-6 text-center text-lg text-gray-500 border">
-                  No employees found.
+                  No parties found.
                 </td>
               </tr>
             ) : (
-              employees.map((emp) => {
-                const id = emp.employeeId ?? emp.id ?? emp.clerkId;
-                const name =
-                  emp.employeeName ??
-                  emp.username ??
-                  (emp.firstName || emp.lastName
-                    ? `${emp.firstName ?? ""} ${emp.lastName ?? ""}`.trim()
-                    : id);
-                const pending = emp.employeePendingOrders ?? 0;
-                const dispatched = emp.employeeDispatchedOrders ?? 0;
+              parties.map((party) => {
+                const id = party.partyId;
+                const name = party.partyName;
+                const pending = party.pendingCases ?? 0;
+                const dispatched = party.dispatchedCases ?? 0;
                 const total = pending + dispatched;
 
                 return (
@@ -64,24 +59,24 @@ export default function ManagerDashboardEmployees({
                     className="hover:bg-gray-50 border border-black hover:cursor-pointer"
                   >
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <Link href={`/employee-dashboard/${id}`}>
+                      <Link href={`/party-dashboard/${id}`}>
                         <div className="text-lg font-medium text-gray-900">{name}</div>
                       </Link>
                     </td>
 
                     <td className="px-4 py-4 whitespace-nowrap text-center">
-                      <Link href={`/employee-dashboard/${id}`}>
+                      <Link href={`/party-dashboard/${id}`}>
                         <div className="text-lg font-semibold">{total}</div>
                       </Link>
                     </td>
 
                     <td className="px-4 py-4 whitespace-nowrap text-center">
-                      <Link href={`/employee-dashboard/${id}`}>
+                      <Link href={`/party-dashboard/${id}`}>
                         <div className="text-lg font-semibold">{dispatched}</div>
                       </Link>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-center">
-                      <Link href={`/employee-dashboard/${id}`}>
+                      <Link href={`/party-dashboard/${id}`}>
                         <div className="text-lg font-semibold">{pending}</div>
                       </Link>
                     </td>

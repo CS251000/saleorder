@@ -1,16 +1,18 @@
 "use client"
+import React, { useEffect, useState, Suspense } from 'react'
 import EmployeeDashboard from '@/components/dashboards/EmployeeDashboard';
 import { Button } from '@/components/ui/button';
 import { SignInButton, SignUpButton, UserButton, useUser } from '@clerk/nextjs';
 import { CircleUser } from 'lucide-react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation'
-import React, { useEffect, useState, Suspense } from 'react'
+import { useParams } from 'next/navigation';
+
 
 // Separate component that uses useSearchParams
 function EmployeeDashboardContent() {
-  const searchParams = useSearchParams();
-  const employeeId = searchParams.get('id');
+  const params = useParams();
+  const {employeeId} = params;
+
   const [currUser, setCurrUser] = useState(null);
   const { user, isLoaded } = useUser();
 

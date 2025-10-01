@@ -1,15 +1,14 @@
-"use client";
-
-import React, { useEffect, useState, useCallback } from "react";
-import EmployeeSaleOrder from "../cards/EmployeeSaleOrder";
+import React, { useCallback, useEffect, useState } from "react";
 import { Switch } from "../ui/switch";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import toast from "react-hot-toast";
-import { useUser } from "@clerk/nextjs";
 import AddSaleOrderForm from "../addSaleOrder";
 import { Input } from "../ui/input";
+import { Card, CardHeader, CardTitle } from "../ui/card";
+import { useUser } from "@clerk/nextjs";
+import PartySaleOrder from "../cards/PartySaleOrder";
+import toast, { Toaster } from "react-hot-toast";
 
-export default function EmployeeDashboard({ currUser }) {
+export default function PartyDashboard({ partyId }) {
+  const[party, setParty] = useState(null);
   const [salesOrders, setSalesOrders] = useState([]);
   const [pendingOrders, setPendingOrders] = useState([]);
   const [pendingCases, setPendingCases] = useState(0);
@@ -17,9 +16,10 @@ export default function EmployeeDashboard({ currUser }) {
   const [completedOrders, setCompletedOrders] = useState([]);
   const [showPending, setShowPending] = useState(true);
   const { user, isLoaded } = useUser();
-  const [role, setRole] = useState("");
-  const [managerId, setManagerId] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm,setSearchTerm]= useState("");
+
+
+  
 
   const getPending = (o) =>
     Number(o?.pendingCase ?? o?.pending_case ?? o?.pending ?? 0);
@@ -39,31 +39,35 @@ export default function EmployeeDashboard({ currUser }) {
     return { pending, completed };
   }, []);
 
-  // search logic
+  //Search
+
   useEffect(() => {
-    if (!searchTerm || searchTerm.trim() === "") {
-      // reset to all orders (partitionFromOrders will partition salesOrders)
-      const { pending, completed } = partitionFromOrders(salesOrders);
+      if (!searchTerm || searchTerm.trim() === "") {
+        // reset to all orders (partitionFromOrders will partition salesOrders)
+        const { pending, completed } = partitionFromOrders(salesOrders);
+        setPendingOrders(pending);
+        setCompletedOrders(completed);
+        return;
+      }
+      const lowerTerm = searchTerm.trim().toLowerCase();
+      const filtered = salesOrders.filter((o) => {
+        const ordernumber = o.orderNumber;
+        const partyName = o.partyName || "";
+        const employeeName= o.employeeName || "";
+        const agentName = o.agentName || "";
+        return (
+          (ordernumber &&
+            String(ordernumber).toLowerCase().includes(lowerTerm)) ||
+          (partyName && partyName.toLowerCase().includes(lowerTerm)) ||
+          (employeeName && employeeName.toLowerCase().includes(lowerTerm)) ||
+          (agentName && agentName.toLowerCase().includes(lowerTerm))
+        );
+      });
+      const { pending, completed } = partitionFromOrders(filtered);
       setPendingOrders(pending);
       setCompletedOrders(completed);
-      return;
-    }
-    const lowerTerm = searchTerm.trim().toLowerCase();
-    const filtered = salesOrders.filter((o) => {
-      const ordernumber = o.orderNumber;
-      const partyName = o.partyName || "";
-      const agentName = o.agentName || "";
-      return (
-        (ordernumber &&
-          String(ordernumber).toLowerCase().includes(lowerTerm)) ||
-        (partyName && partyName.toLowerCase().includes(lowerTerm)) ||
-        (agentName && agentName.toLowerCase().includes(lowerTerm))
-      );
-    });
-    const { pending, completed } = partitionFromOrders(filtered);
-    setPendingOrders(pending);
-    setCompletedOrders(completed);
-  }, [searchTerm, salesOrders, partitionFromOrders]);
+    }, [searchTerm, salesOrders, partitionFromOrders]);
+  
 
   // Recalculate totals whenever salesOrders changes (keeps totals dynamic)
   useEffect(() => {
@@ -79,15 +83,16 @@ export default function EmployeeDashboard({ currUser }) {
     setDispatchedCases(totalDispatched);
   }, [salesOrders]);
 
-  const fetchSalesOrders = useCallback(async () => {
-    if (!currUser?.id) return;
-    try {
+  const fetchSalesOrders= useCallback(async()=>{
+    if(!partyId)return;
+    try{
       const res = await fetch(
-        `/api/sales-orders?employeeId=${encodeURIComponent(currUser.id)}`
+        `/api/sales-orders?partyId=${encodeURIComponent(partyId)}`
       );
       if (!res.ok) throw new Error("Failed to fetch sales orders");
       const data = await res.json();
       const all = data.salesOrders || [];
+      setParty(data.party);
       setSalesOrders(all);
 
       const { pending, completed } = partitionFromOrders(all);
@@ -98,40 +103,7 @@ export default function EmployeeDashboard({ currUser }) {
       console.error("fetchSalesOrders error:", err);
       toast.error("Could not load sales orders");
     }
-  }, [currUser, partitionFromOrders]);
-
-  useEffect(() => {
-    if (!isLoaded || !currUser) return;
-    async function fetchRole() {
-      try {
-        const res = await fetch(`/api/user?id=${user.id}`);
-        const data = await res.json();
-        setRole(data.currentUser?.role ?? "");
-        if (data.currentUser.role === "Employee") {
-          // get managerId
-          try {
-            const res = await fetch(
-              `/api/manager?employeeId=${data.currentUser.id}`
-            );
-            const datam = await res.json();
-            setManagerId(datam?.managerId ?? null);
-          } catch (error) {
-            console.error("Error fetching manager ID:", error);
-          }
-        } else {
-          setManagerId(data.currentUser?.id);
-        }
-      } catch (error) {
-        console.error("Error fetching user role:", error);
-      }
-    }
-    fetchRole();
-  }, [isLoaded, currUser, user]);
-
-  useEffect(() => {
-    if (!currUser?.id) return;
-    fetchSalesOrders();
-  }, [currUser, fetchSalesOrders]);
+  },[partyId, partitionFromOrders]);
 
   const handleOnDispatched = async (updatedOrderOrId) => {
     const updatedOrder =
@@ -161,7 +133,7 @@ export default function EmployeeDashboard({ currUser }) {
       return newList;
     });
     toast.success("Order updated");
-    // totals auto-updated by useEffect on salesOrders
+    
   };
 
   const handleDeleteOrder = async (deleteOrderId) => {
@@ -184,30 +156,33 @@ export default function EmployeeDashboard({ currUser }) {
       setSalesOrders((prev) =>
         prev.filter((o) => String(o.id) !== String(deleteOrderId))
       );
-      // partitions/totals will update via effects
+      
     } catch (err) {
       console.error("Failed to delete order:", err);
       toast.error("Failed to delete order");
     }
   };
 
-  if (!currUser || !isLoaded) {
-    return (
-      <h1 className="text-center text-xl font-semibold mt-8">Loading...</h1>
-    );
+  useEffect(() => {
+    if (isLoaded) {
+      fetchSalesOrders();
+    }
+  }, [isLoaded, fetchSalesOrders]);
+
+  if(!isLoaded){
+    return <div>Loading...</div>;
   }
 
   return (
     <div className="p-6 space-y-6">
+      <Toaster position="top-right" />
       {/* Header Section */}
       <div className="flex flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="font-bold text-3xl">{currUser?.username}</h2>
+        <h2 className="font-bold text-3xl">{party?.name}</h2>
 
         <div className="flex flex-row gap-4 items-center">
           {/* Toggle Switch */}
           <div className="flex items-center space-x-2">
-            {role === "Manager" && (
-              <>
                 <Switch
                   checked={showPending}
                   onCheckedChange={(checked) => setShowPending(checked)}
@@ -216,18 +191,16 @@ export default function EmployeeDashboard({ currUser }) {
                 <span className="text-sm font-medium">
                   {showPending ? "Pending Orders" : "Completed Orders"}
                 </span>
-              </>
-            )}
           </div>
 
-          <AddSaleOrderForm
+          {/* <AddSaleOrderForm
             currUser={currUser}
             onCreated={fetchSalesOrders}
             managerId={managerId}
             employeeDashboard={true}
             triggerLabel="Add Sale Order"
             triggerClassName="flex items-center gap-2"
-          />
+          /> */}
         </div>
       </div>
 
@@ -295,10 +268,10 @@ export default function EmployeeDashboard({ currUser }) {
         {showPending &&
           pendingOrders.map((order) => (
             <div key={order.id} className="h-full">
-              <EmployeeSaleOrder
+              <PartySaleOrder
                 SaleOrder={order}
                 onDispatched={handleOnDispatched}
-                userRole={role}
+                // userRole={role}
                 handleDeleteOrder={handleDeleteOrder}
               />
             </div>
@@ -307,9 +280,9 @@ export default function EmployeeDashboard({ currUser }) {
         {!showPending &&
           completedOrders.map((order) => (
             <div key={order.id} className="h-full">
-              <EmployeeSaleOrder
+              <PartySaleOrder
                 SaleOrder={order}
-                userRole={role}
+                // userRole={role}
                 handleDeleteOrder={handleDeleteOrder}
               />
             </div>

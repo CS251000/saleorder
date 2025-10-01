@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import toast from "react-hot-toast";
 import { formattedDate } from "@/lib/constants";
 
-export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,handleDeleteOrder }) {
+export default function PartySaleOrder({ SaleOrder, onDispatched,handleDeleteOrder }) {
   const [open, setOpen] = useState(false);
   const [dispatchCount, setDispatchCount] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -103,9 +103,9 @@ export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,han
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="font-medium text-[#415A77]">Party Name:</span>
+            <span className="font-medium text-[#415A77]">Employee Name:</span>
             <span className="font-bold text-[#1B263B]">
-              {SaleOrder.partyName}
+              {SaleOrder.employeeName}
             </span>
           </div>
           <div className="flex justify-between">
@@ -129,7 +129,6 @@ export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,han
         </CardContent>
 
         <CardFooter className="flex justify-between">
-          {userRole==="Manager" && (
           <Button variant={'outline'} className={'cursor-pointer'}
             onClick={()=>{
               handleDeleteOrder(SaleOrder.id);
@@ -137,7 +136,6 @@ export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,han
            >
             Delete
           </Button>
-          )}
           {String(SaleOrder.orderStatus ?? SaleOrder.status) === "Dispatched" ||
           Number(pendingDisplay) === 0 ? (
             <Button
@@ -157,7 +155,10 @@ export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,han
         </CardFooter>
       </Card>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+      open={open} 
+      onOpenChange={setOpen}
+      >
         <DialogTrigger asChild>
           <span />
         </DialogTrigger>

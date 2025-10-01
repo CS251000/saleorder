@@ -1,17 +1,19 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { saleOrder, agents, party, employees } from "@/db/schema";
+import { saleOrder, agents, party, employees, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const employeeId = searchParams.get("employeeId");
+  const partyId = searchParams.get("partyId");
 
-  if (!employeeId) {
-    return NextResponse.json({ error: "Employee ID is required" }, { status: 400 });
+  if (!employeeId && !partyId) {
+    return NextResponse.json({ error: "Employee ID and Party ID are required" }, { status: 400 });
   }
 
-  try {
+  if(employeeId){
+    try {
     const salesOrders = await db
       .select({
         id: saleOrder.id,
@@ -35,7 +37,40 @@ export async function GET(req) {
     console.error("GET /api/sales-orders error:", err);
     return NextResponse.json({ error: "Failed to fetch sales orders" }, { status: 500 });
   }
+  }
+
+  if(partyId){
+    try {
+    const salesOrders = await db
+      .select({
+        id: saleOrder.id,
+        orderNumber: saleOrder.orderNumber,
+        orderDate: saleOrder.orderDate,
+        partyName: party.name,
+        agentName: agents.name,
+        totalCase: saleOrder.totalCase,
+        pendingCase: saleOrder.pendingCase,
+        dispatchedCase: saleOrder.dispatchedCase,
+        staffId: saleOrder.staff,
+        employeeName: users.username,
+        orderStatus: saleOrder.status,
+      })
+      .from(saleOrder)
+      .leftJoin(users, eq(saleOrder.staff, users.id))
+      .leftJoin(party, eq(saleOrder.partyId, party.id))
+      .leftJoin(agents, eq(saleOrder.agentId, agents.id))
+      .where(eq(saleOrder.partyId, partyId));
+    
+    const partyDetails= await db.select().from(party).where(eq(party.id,partyId));
+
+    return NextResponse.json({ salesOrders, party: partyDetails[0] });
+  } catch (err) {
+    console.error("GET /api/sales-orders error:", err);
+    return NextResponse.json({ error: "Failed to fetch sales orders" }, { status: 500 });
+  }
+  }
 }
+  
 
 export async function POST(req) {
   try {
@@ -79,12 +114,21 @@ export async function POST(req) {
 
       const currEmployee= await db.select().from(employees).where(eq(employees.employeeId,staff));
 
+      const currParty= await db.select().from(party).where(eq(party.id,partyId));
+
       var pending= currEmployee[0]?.pendingOrders ?? 0;
       pending+= totalNum;
+
+      var pendingparty= currParty[0]?.pendingCases??0;
+      pendingparty+= totalNum;
 
       const upEmployee= await db.update(employees)
       .set({pendingOrders: pending})
       .where(eq(employees.employeeId,staff));
+
+      const upParty= await db.update(party)
+      .set({pendingCases: pendingparty})
+      .where(eq(party.id,partyId));
 
     return NextResponse.json({ message: "Sale order created", saleOrder: newOrder[0] }, { status: 201 });
   } catch (err) {
@@ -106,9 +150,14 @@ export async function DELETE(req){
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    const delOrder= await db.delete(saleOrder).where(eq(saleOrder.id, orderId));
 
     const currEmployee= await db.select().from(employees).where(eq(employees.employeeId,existingOrder[0].staff));
+
+    const currParty= await db.select().from(party).where(eq(party.id,existingOrder[0].partyId));
+
+    var pendingparty= currParty[0]?.pendingCases ?? 0;
+    pendingparty-= existingOrder[0].pendingCase;
+
 
     var pending= currEmployee[0]?.pendingOrders ?? 0;
     pending-= existingOrder[0].pendingCase;
@@ -118,6 +167,14 @@ export async function DELETE(req){
     const upEmployee= await db.update(employees)
     .set({pendingOrders: pending})
     .where(eq(employees.employeeId,existingOrder[0].staff));
+
+    if(pendingparty<0) pendingparty=0;
+
+    const upParty= await db.update(party)
+    .set({pendingCases: pendingparty})
+    .where(eq(party.id,existingOrder[0].partyId));
+
+    const delOrder= await db.delete(saleOrder).where(eq(saleOrder.id, orderId));
 
     return NextResponse.json({ message: "Order deleted" }, { status: 200 });
     
