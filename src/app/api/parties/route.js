@@ -41,7 +41,7 @@ export async function POST(req) {
       .values({ 
         name: partyName, 
         managerId : managerId
-      })
+      }).onConflictDoNothing({target:party.name})
       .returning({
         partyId: party.id,
         partyName: party.name,

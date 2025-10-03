@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Dinesh Hosiery Utilities",
-  description: "Developed by Chirag Singhal",
+  title: "EeazyBeezy",
+  description: "Make your business easy",
 };
 
 export default function RootLayout({ children }) {

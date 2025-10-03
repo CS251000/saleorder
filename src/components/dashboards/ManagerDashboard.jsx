@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { Plus, UserPlus, Users, List } from "lucide-react";
 import { Button } from "../ui/button";
-import { UserPlus } from "lucide-react";
 import { Switch } from "../ui/switch";
 import {
   Dialog,
@@ -12,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import toast, { Toaster } from "react-hot-toast";
+
 import ManagerDashboardEmployees from "./ManagerDashboardEmployees";
 import AddSaleOrderForm from "../addSaleOrder";
 import ManagerDashboardParties from "./ManagerDashboardParties";
@@ -19,15 +21,17 @@ import ManagerDashboardParties from "./ManagerDashboardParties";
 /**
  * ManagerDashboard - expects currUser prop from parent (Home)
  * currUser is the DB user object you store for the logged-in Clerk user.
+ *
+ * NOTE: This file improves UI/responsiveness only. Backend endpoints,
+ * state names and behavior remain unchanged.
  */
 export default function ManagerDashboard({ currUser }) {
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [loadingParties, setLoadingParties] = useState(false);
   const [fetchError, setFetchError] = useState(null);
-  const[partyView,setPartyView]=useState(false);
-  const[parties,setParties]= useState([]);
-
+  const [partyView, setPartyView] = useState(false);
+  const [parties, setParties] = useState([]);
 
   // Add employee form state
   const [employeeId, setEmployeeId] = useState("");
@@ -64,7 +68,7 @@ export default function ManagerDashboard({ currUser }) {
     }
   }, [managerId]);
 
-    const fetchParties = useCallback(async () => {
+  const fetchParties = useCallback(async () => {
     if (!managerId) {
       setParties([]);
       return;
@@ -78,7 +82,7 @@ export default function ManagerDashboard({ currUser }) {
         throw new Error(err?.error || `Failed to fetch parties (${res.status})`);
       }
       const data = await res.json();
-      // API may return array or { employees: [...] } — normalize
+      // API may return array or { parties: [...] } — normalize
       const list = Array.isArray(data) ? data : data.parties ?? [];
       list.sort((a, b) => (b.pendingCases ?? 0) - (a.pendingCases ?? 0));
       setParties(list);
@@ -97,7 +101,6 @@ export default function ManagerDashboard({ currUser }) {
       fetchEmployees();
       fetchParties();
     }
-
   }, [managerId, fetchEmployees, fetchParties]);
 
   // Save employee and refresh list on success
@@ -157,48 +160,78 @@ export default function ManagerDashboard({ currUser }) {
     lastName: currUser.lastName,
   };
 
+  const managerName = currUser.username ?? `${currUser.firstName ?? ""} ${currUser.lastName ?? ""}`.trim();
+
   return (
-    <div className="relative w-full px-4 sm:px-6">
+    <div className="relative w-full px-4 sm:px-6 lg:px-8">
       <Toaster position="top-right" />
 
-      <div className="flex items-center w-full py-3 mb-10">
-        {/* Left-side: Add Sale Order */}
-        <div className="flex space-x-2">
-          <AddSaleOrderForm
-            currUser={saleOrderUser}
-            managerId={currUser?.id}
-            employeeDashboard={false}
-            onCreated={() => {
-              toast.success("Sale order added — refresh where needed.");
-            }}
-            triggerLabel="Add Sale Order"
-            triggerClassName="inline-flex items-center space-x-2 px-3 py-2 text-sm"
-          />
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-center gap-3 py-3 mb-6">
+        {/* Left: Add Sale Order */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="hidden sm:block">
+            <AddSaleOrderForm
+              currUser={saleOrderUser}
+              managerId={currUser?.id}
+              employeeDashboard={false}
+              onCreated={() => {
+                toast.success("Sale order added — refresh where needed.");
+              }}
+              triggerLabel="Add Sale Order"
+              triggerClassName="inline-flex items-center space-x-2 px-3 py-2 text-sm"
+            />
+          </div>
+
+          {/* Mobile compact button (icon-only) */}
+          <div className="sm:hidden">
+            <AddSaleOrderForm
+              currUser={saleOrderUser}
+              managerId={currUser?.id}
+              employeeDashboard={false}
+              onCreated={() => {
+                toast.success("Sale order added — refresh where needed.");
+              }}
+              triggerLabel=""
+              triggerClassName="inline-flex items-center justify-center p-2"
+            />
+          </div>
         </div>
 
-        {/* Centered Title */}
-        <h1
-          className="absolute left-1/2 transform -translate-x-1/2 
-                 text-lg sm:text-2xl md:text-3xl font-bold text-center
-                 truncate max-w-[calc(100%-8rem)]"
+        {/* Center Title */}
+        <motion.h1
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex-1 text-center text-lg sm:text-2xl md:text-3xl font-bold truncate"
+          title={`Manager${managerName ? ` — ${managerName}` : ""}`}
         >
-          Manager
-        </h1>
+          Manager{managerName ? ` — ${managerName}` : ""}
+        </motion.h1>
 
-        {/* Right-side: Add Employee */}
-        <div className="ml-auto flex items-center gap-3 flex-col">
+        {/* Right controls */}
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          {/* Switch + label */}
+          <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-800 px-2 py-1 rounded-md">
+            <Switch checked={partyView} onCheckedChange={(checked) => setPartyView(checked)} />
+            <div className="sm:flex flex-col text-xs">
+              <span className="font-medium">{partyView ? "Parties" : "Employees"}</span>
+              <span className=" hidden md:block text-[11px] text-gray-500">{partyView ? "View parties" : "View employees"}</span>
+            </div>
+          </div>
+
+          {/* Add Employee Dialog */}
           <Dialog open={empDialogOpen} onOpenChange={setEmpDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="hidden sm:inline-flex items-center space-x-2 px-4 py-2 text-sm md:text-base">
+              <Button className="hidden md:inline-flex items-center space-x-2 px-4 py-2 text-sm md:text-base">
                 <UserPlus />
                 <span>Add New Employee</span>
               </Button>
             </DialogTrigger>
 
-            {/* mobile trigger */}
+            {/* mobile icon trigger */}
             <DialogTrigger asChild>
               <Button
-                className="sm:hidden inline-flex items-center justify-center p-2"
+                className="md:hidden inline-flex items-center justify-center p-2"
                 aria-label="Add New Employee"
               >
                 <UserPlus />
@@ -218,13 +251,18 @@ export default function ManagerDashboard({ currUser }) {
                 }}
                 className="space-y-4"
               >
-                <input
-                  type="text"
-                  placeholder="Employee ID"
-                  value={employeeId}
-                  onChange={(e) => setEmployeeId(e.target.value)}
-                  className="w-full px-3 py-2 border rounded"
-                />
+                <label className="block text-sm">
+                  <span className="sr-only">Employee ID</span>
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="Employee ID (ex: EMP123)"
+                    value={employeeId}
+                    onChange={(e) => setEmployeeId(e.target.value)}
+                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-offset-1"
+                    aria-label="Employee ID"
+                  />
+                </label>
                 <div className="flex justify-end space-x-2">
                   <Button
                     type="button"
@@ -244,36 +282,112 @@ export default function ManagerDashboard({ currUser }) {
               </form>
             </DialogContent>
           </Dialog>
-          <div>
-            <Switch 
-            checked={partyView}
-            onCheckedChange={(checked)=>setPartyView(checked)}
-           />
-           <label className="p-2">Parties</label>
-           </div>
         </div>
       </div>
 
-      {/* Employees list */}
-      {!partyView&& 
-      <ManagerDashboardEmployees
-        employees={employees}
-        loading={loadingEmployees}
-        managerName={currUser.username ?? `${currUser.firstName ?? ""} ${currUser.lastName ?? ""}`.trim()}
-      /> 
-      }
+      {/* Top summary / quick actions row (responsive) */}
+      {/* <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        <div className="col-span-1 sm:col-span-2 bg-white dark:bg-slate-900 rounded-lg shadow-sm p-3 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">Overview</h3>
+            <p className="mt-1 text-xs text-gray-500">Quick snapshot and actions</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" onClick={() => { fetchEmployees(); toast.success("Refreshed employees"); }}>
+              <List size={16} />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
+            <Button size="sm" onClick={() => setEmpDialogOpen(true)}>
+              <Plus size={14} />
+              <span className="hidden sm:inline">Add</span>
+            </Button>
+          </div>
+        </div>
 
-      {partyView&&
-      <ManagerDashboardParties
-        parties={parties}
-        loading={loadingParties}
-        managerName={currUser.username ?? `${currUser.firstName ?? ""} ${currUser.lastName ?? ""}`.trim()}
-      /> 
-       }
-      
-      {fetchError ? (
-        <div className="mt-4 text-sm text-red-500">Error: {fetchError}</div>
-      ) : null}
+        {/* <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm p-3 flex flex-col">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">View</h3>
+            <div className="text-xs text-gray-500">{partyView ? "Parties mode" : "Employees mode"}</div>
+          </div>
+          <div className="mt-2 text-xs text-gray-500">
+            Toggle between Employees and Parties. New entries appear after refresh.
+          </div>
+        </div> */}
+      {/* </div> */}
+
+      {/* Main content area */}
+      <div className="w-full">
+        <div className="bg-white dark:bg-slate-900 shadow-sm rounded-lg p-4">
+          {!partyView && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Users />
+                  <h4 className="text-sm font-semibold">Employees</h4>
+                </div>
+                <div className="text-xs text-gray-500">{loadingEmployees ? "Loading..." : `${employees.length} employees`}</div>
+              </div>
+
+              {/**
+               * ManagerDashboardEmployees receives same props as before.
+               * It is responsible for rendering list and handling its own internal UI.
+               */}
+              <ManagerDashboardEmployees
+                employees={employees}
+                loading={loadingEmployees}
+                managerName={managerName}
+              />
+            </div>
+          )}
+
+          {partyView && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Users />
+                  <h4 className="text-sm font-semibold">Parties</h4>
+                </div>
+                <div className="text-xs text-gray-500">{loadingParties ? "Loading..." : `${parties.length} parties`}</div>
+              </div>
+
+              <ManagerDashboardParties
+                parties={parties}
+                loading={loadingParties}
+                managerName={managerName}
+              />
+            </div>
+          )}
+        </div>
+
+        {fetchError ? (
+          <div className="mt-4 text-sm text-red-500">Error: {fetchError}</div>
+        ) : null}
+      </div>
+
+      {/* Mobile sticky quick actions */}
+      {/* <div className="fixed left-0 right-0 bottom-4 px-4 sm:px-6 md:hidden pointer-events-none">
+        <div className="mx-auto max-w-lg pointer-events-auto flex items-center justify-between bg-white/95 dark:bg-slate-800/90 backdrop-blur rounded-xl shadow-lg p-2">
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant={partyView ? "ghost" : "default"} onClick={() => setPartyView(false)} className="inline-flex items-center space-x-2">
+              <Users />
+              <span className="text-xs">Employees</span>
+            </Button>
+            <Button size="sm" variant={partyView ? "default" : "ghost"} onClick={() => setPartyView(true)} className="inline-flex items-center space-x-2">
+              <UserPlus />
+              <span className="text-xs">Parties</span>
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => setEmpDialogOpen(true)}>
+              + Add
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => { fetchEmployees(); fetchParties(); toast.success("Refreshed"); }}>
+              Refresh
+            </Button>
+          </div>
+        </div>
+      </div> */}
     </div>
   );
 }

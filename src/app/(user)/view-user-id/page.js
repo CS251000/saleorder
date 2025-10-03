@@ -14,7 +14,7 @@ function UserProfileContent() {
     try {
       await navigator.clipboard.writeText(userId);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000); // reset after 2s
+      setTimeout(() => setCopied(false), 2000); 
     } catch (err) {
       console.error("Failed to copy:", err);
     }

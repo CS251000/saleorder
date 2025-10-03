@@ -39,6 +39,7 @@ export async function POST(req) {
     const newAgent = await db
       .insert(agents)
       .values({ name: agentName,managerId:managerId })
+      .onConflictDoNothing({target:agents.name})
       .returning({
         agentId: agents.id,
         agentName: agents.name,
