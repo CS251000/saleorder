@@ -19,12 +19,12 @@ export async function GET(req) {
         id: saleOrder.id,
         orderNumber: saleOrder.orderNumber,
         orderDate: saleOrder.orderDate,
+        completedDate: saleOrder.completedDate,
         partyName: party.name,
         agentName: agents.name,
         totalCase: saleOrder.totalCase,
         pendingCase: saleOrder.pendingCase,
         dispatchedCase: saleOrder.dispatchedCase,
-        
         orderStatus: saleOrder.status,
       })
       .from(saleOrder)
@@ -46,6 +46,7 @@ export async function GET(req) {
         id: saleOrder.id,
         orderNumber: saleOrder.orderNumber,
         orderDate: saleOrder.orderDate,
+        completedDate: saleOrder.completedDate,
         partyName: party.name,
         agentName: agents.name,
         totalCase: saleOrder.totalCase,

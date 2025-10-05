@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import LandingPage from "@/components/LandingPage";
 import Image from "next/image";
 import logo from "../../public/assets/logo.png";
 import { CircleUser } from "lucide-react";
+import Link from "next/link";
 
 export default function Home() {
   const { user, isLoaded } = useUser();
@@ -18,22 +19,50 @@ export default function Home() {
   const [selectedRole, setSelectedRole] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const hasCheckedRef = useRef(false);
+
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || !user) return;
+
+    // ✅ Clear local cache when user logs out
+    if (!user) {
+      localStorage.removeItem("isInDB");
+      localStorage.removeItem("currentUser");
+      return;
+    }
+
+    // ✅ Try to load cached data first
+    const cachedUser = localStorage.getItem("currentUser");
+    const cachedIsInDB = localStorage.getItem("isInDB");
+
+    if (cachedUser && cachedIsInDB) {
+      setCurrentUser(JSON.parse(cachedUser));
+      setIsInDB(cachedIsInDB === "true");
+      hasCheckedRef.current = true; // mark as done
+      return;
+    }
+
+    if (hasCheckedRef.current) return; // already checked during session
+    hasCheckedRef.current = true;
+
     async function checkUserInDB(user) {
       try {
         const res = await fetch(`/api/user?id=${user.id}`);
         const data = await res.json();
+
         setIsInDB(data.exists);
         setCurrentUser(data.currentUser);
+
+        // ✅ Save in localStorage for next reload
+        localStorage.setItem("isInDB", data.exists);
+        localStorage.setItem("currentUser", JSON.stringify(data.currentUser));
       } catch (err) {
         console.error("Error checking user:", err);
         setIsInDB(false);
       }
     }
-    if (isLoaded && user) {
-      checkUserInDB(user);
-    }
+
+    checkUserInDB(user);
   }, [isLoaded, user]);
 
   async function handleFormSubmit(e) {
@@ -55,19 +84,15 @@ export default function Home() {
       });
 
       const data = await res.json();
+      const savedUser= data.user;
 
       // ✅ Set both flags
       setIsInDB(true);
       setCurrentUser(
-        data.user ||
-          data.currentUser || {
-            clerkId: user.id,
-            username: user.username,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            ...body,
-          }
+        savedUser
       );
+      localStorage.setItem("isInDB", "true");
+      localStorage.setItem("currentUser", JSON.stringify(savedUser));
     } catch (err) {
       console.error("Error saving user:", err);
     }
@@ -209,9 +234,12 @@ export default function Home() {
               <a className="text-sm eb-muted hover:text-[var(--eb-navy)] cursor-pointer">
                 Features
               </a>
-              <a className="text-sm eb-muted hover:text-[var(--eb-navy)] cursor-pointer">
+              <Link
+                href="/pricing"
+                className="text-sm eb-muted hover:text-[var(--eb-navy)] cursor-pointer"
+              >
                 Pricing
-              </a>
+              </Link>
               <a className="text-sm eb-muted hover:text-[var(--eb-navy)] cursor-pointer">
                 Customers
               </a>
@@ -261,32 +289,32 @@ export default function Home() {
             {/* Mobile: Sign In title-only on right */}
             {!user ? (
               <div className="md:hidden">
-                  <SignUpButton mode="modal">
-                    <Button
-                      className="w-full px-3 py-2 rounded-md text-sm"
-                      style={{
-                        background: "var(--eb-royal)",
-                        color: "var(--eb-white)",
-                      }}
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Sign Up
-                    </Button>
-                  </SignUpButton>
-                  </div>
-                ) : (
-                  <div className=" md:hidden pt-2">
-                    <UserButton>
-                    <UserButton.MenuItems>
-                      <UserButton.Link
-                        label="View User Id"
-                        labelIcon={<CircleUser />}
-                        href={`/view-user-id?id=${currentUser?.id ?? ""}`}
-                      />
-                    </UserButton.MenuItems>
-                  </UserButton>
-                  </div>
-                )}
+                <SignUpButton mode="modal">
+                  <Button
+                    className="w-full px-3 py-2 rounded-md text-sm"
+                    style={{
+                      background: "var(--eb-royal)",
+                      color: "var(--eb-white)",
+                    }}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Sign Up
+                  </Button>
+                </SignUpButton>
+              </div>
+            ) : (
+              <div className=" md:hidden pt-2">
+                <UserButton>
+                  <UserButton.MenuItems>
+                    <UserButton.Link
+                      label="View User Id"
+                      labelIcon={<CircleUser />}
+                      href={`/view-user-id?id=${currentUser?.id ?? ""}`}
+                    />
+                  </UserButton.MenuItems>
+                </UserButton>
+              </div>
+            )}
           </div>
         </div>
 
@@ -300,12 +328,13 @@ export default function Home() {
               >
                 Features
               </a>
-              <a
+              <Link
+                href="/pricing"
                 onClick={() => setMenuOpen(false)}
                 className="text-base eb-muted hover:text-[var(--eb-navy)] cursor-pointer"
               >
                 Pricing
-              </a>
+              </Link>
               <a
                 onClick={() => setMenuOpen(false)}
                 className="text-base eb-muted hover:text-[var(--eb-navy)] cursor-pointer"
@@ -330,14 +359,14 @@ export default function Home() {
                 ) : (
                   <div>
                     <UserButton>
-                    <UserButton.MenuItems>
-                      <UserButton.Link
-                        label="View User Id"
-                        labelIcon={<CircleUser />}
-                        href={`/view-user-id?id=${currentUser?.id ?? ""}`}
-                      />
-                    </UserButton.MenuItems>
-                  </UserButton>
+                      <UserButton.MenuItems>
+                        <UserButton.Link
+                          label="View User Id"
+                          labelIcon={<CircleUser />}
+                          href={`/view-user-id?id=${currentUser?.id ?? ""}`}
+                        />
+                      </UserButton.MenuItems>
+                    </UserButton>
                   </div>
                 )}
               </div>

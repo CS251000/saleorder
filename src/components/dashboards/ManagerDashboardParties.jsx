@@ -8,7 +8,7 @@ export default function ManagerDashboardParties({
   parties = [],
   loading = false,
   managerName = "",
-}) {
+}){
   return (
     <div>
       <h2 className="text-lg font-bold">Parties under {managerName || "you"}</h2>
@@ -46,7 +46,7 @@ export default function ManagerDashboardParties({
                 </td>
               </tr>
             ) : (
-              parties.map((party) => {
+              parties.filter((party)=>party.pendingCases > 0).map((party) => {
                 const id = party.partyId;
                 const name = party.partyName;
                 const pending = party.pendingCases ?? 0;

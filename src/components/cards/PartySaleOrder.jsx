@@ -97,9 +97,12 @@ export default function PartySaleOrder({ SaleOrder, onDispatched,handleDeleteOrd
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="font-medium text-[#415A77]">Date:</span>
+            <span className="font-medium text-[#415A77]">
+              {SaleOrder.completedDate ? "Completed" : "Order"}
+              Date:
+              </span>
             <span className="font-bold text-[#1B263B]">
-              {formattedDate(SaleOrder.orderDate)}
+              {formattedDate(SaleOrder.completedDate ?? SaleOrder.orderDate)}
             </span>
           </div>
           <div className="flex justify-between">

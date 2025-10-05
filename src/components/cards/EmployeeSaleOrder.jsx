@@ -97,11 +97,23 @@ export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,han
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="font-medium text-[#415A77]">Date:</span>
+            <span className="font-medium text-[#415A77]">
+              Order Date:
+              </span>
             <span className="font-bold text-[#1B263B]">
               {formattedDate(SaleOrder.orderDate)}
             </span>
           </div>
+          {SaleOrder.completedDate&& (
+              <div className="flex justify-between">
+              <span className="font-medium text-[#415A77]">
+              Completed Date:
+              </span>
+            <span className="font-bold text-[#1B263B]">
+              {formattedDate(SaleOrder.completedDate)}
+            </span>
+            </div>
+            )}
           <div className="flex justify-between">
             <span className="font-medium text-[#415A77]">Party Name:</span>
             <span className="font-bold text-[#1B263B]">

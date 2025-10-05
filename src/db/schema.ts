@@ -27,12 +27,12 @@ export const employees = pgTable("employees", {
 
 export const agents= pgTable("agents",{
   id:uuid("agent_id").default(sql`gen_random_uuid()`).primaryKey(),
-  name:text("name"),
+  name:text("name").unique(),
   managerId: uuid("manager_id").references(() => users.id),
 })
 export const party= pgTable("party",{
   id:uuid("party_id").default(sql`gen_random_uuid()`).primaryKey(),
-  name:text("name"),
+  name:text("name").unique(),
   managerId: uuid("manager_id").references(() => users.id),
   pendingCases: integer("pending_cases").default(0),
   dispatchedCases: integer("dispatched_cases").default(0)
@@ -43,6 +43,7 @@ export const saleOrder= pgTable("sales_order",{
   orderNumber: varchar("order_number"),
   employeeId: uuid("employee_id").references(() => employees.id),
   orderDate: date("order_date").defaultNow(),
+  completedDate: date("completed_date").default(null),
   agentId: uuid("agent_id").references(() => agents.id),
   partyId: uuid("party_id").references(() => party.id),
   staff:uuid("staff").references(() => users.id),
@@ -51,3 +52,5 @@ export const saleOrder= pgTable("sales_order",{
   dispatchedCase: integer("dispatched_case"),
   status: saleOrderStatus("status").default("Pending")
 })
+
+
