@@ -497,7 +497,7 @@ export default function PricingPage() {
                       className="text-lg font-semibold "
                       // style={{ color: "#E6EEF9" }}
                     >
-                      What's included
+                      {`What's Included`}
                     </CardTitle>
                     <CardDescription className="text-slate-300">
                       Everything you need to run daily operations without the
@@ -621,10 +621,7 @@ export default function PricingPage() {
               </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-3">
-                <div className="inline-flex items-center gap-2 rounded-md border border-[#E6EEF9] px-3 py-1 text-sm text-gray-600">
-                  <Star className="h-4 w-4" style={{ color: "#FFD24C" }} />
-                  <span>7-day refund window</span>
-                </div>
+                
                 <div className="inline-flex items-center gap-2 rounded-md border border-[#E6EEF9] px-3 py-1 text-sm text-gray-600">
                   <Star className="h-4 w-4" style={{ color: "#0A4BA8" }} />
                   <span>Secure payments (Razorpay)</span>
@@ -716,7 +713,7 @@ export default function PricingPage() {
               >
                 Contact support
               </a>{" "}
-              — we're happy to help.
+              {"— we're happy to help."}
             </div>
           </div>
         </section>
