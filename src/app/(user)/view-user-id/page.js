@@ -1,4 +1,5 @@
 "use client";
+import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import React, { useState, Suspense } from "react";
@@ -22,6 +23,7 @@ function UserProfileContent() {
 
   return (
     <>
+    <Navbar/>
       <h1 className="text-2xl font-bold mb-4">User Profile</h1>
       {userId && (
         <div className="flex items-center space-x-4">
@@ -43,10 +45,7 @@ function UserProfileContent() {
 // Main component with Suspense wrapping the component that uses useSearchParams
 export default function UserProfilePage() {
   return (
-    <div className="p-6">
-      <Link href="/" className="text-blue-600 hover:underline mb-4 inline-block">
-        Back to Home
-      </Link>
+    <div className="">
       <Suspense fallback={<div>Loading...</div>}>
         <UserProfileContent />
       </Suspense>

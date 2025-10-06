@@ -25,12 +25,17 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        
         <div>
           <Toaster position="top-right" />
           {children}
         </div>
       </body>
+      
     </html>
+    {/* <footer className="w-full bg-black text-white">
+        Developed by Chirag Singhal
+      </footer> */}
     </ClerkProvider>
   );
 }

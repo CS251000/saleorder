@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Card,
   CardContent,
@@ -9,36 +9,106 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import { Switch } from "@/components/ui/switch";
 import { Check, Star, ChevronRight } from "lucide-react";
-import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
-import { CircleUser } from "lucide-react";
-import Image from "next/image";
-import logo from "../../../../public/assets/logo.png";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Navbar from "@/components/Navbar";
 
+const popularPlanId = "plan_RPRGOw4DkGHcxU"; // EazyPro plan ID
+const AnnualPlans=[
+  {
+    id:"plan_RPV6LNu5TTGnJ2",
+    planName:"EazyCore",
+    description:"For solo founders & small teams starting their automation journey Focus on what matters most — your customers. EazyCore gives you the essential tools to streamline daily operations, automate tasks, and save hours every week without any complexity. Perfect for: Small Business with simple workflows",
+    amount:1799,
+    period:"Every Year",
+    features:[
+      "Up to 3 users",
+      "1000 tasks/month",
+      "Basic automations",
+      "Email support",
+    ],
+    popular:false
+  },
+  {
+    id:"plan_RPV7T3VzFCChKG",
+    planName:"EazyPro",
+    description:"Most popular model for growing teams who want smarter workflows and collaboration Scale with confidence. EazyPro unlocks advanced automations, multiple user seats, and team-level analytics to keep everyone in sync. With priority support and deeper integrations, you can deliver faster, track performance, and make better data-driven decisions. Perfect for: Small to medium businesses scaling operations.",
+    amount:3199,
+    period:"Every Year",
+    features:[
+      "Up to 3 users",
+      "1000 tasks/month",
+      "Basic automations",
+      "Email support",
+    ],
+    popular:true
+  },
+  {
+    id:"plan_RPV7zy2H6GVp6K",
+    planName:"EazyElite",
+    description:"For businesses that demand premium performance and personal onboarding Your success, handled personally. EazyElite brings everything in EazyPro plus white-glove onboarding, dedicated support, and enterprise-grade automation tools built for scale. Enjoy exclusive insights, SLA commitments, and VIP access to our roadmap. Perfect for: Established businesses & growing enterprises.",
+    amount: 6999,
+    period:"per month",
+    features:[
+      "Up to 3 users",
+      "1000 tasks/month",
+      "Basic automations",
+      "Email support",
+    ],
+    popular:false
+  }
+]
+const MonthlyPlans=[
+  {
+    id:"plan_RPRF6HdWTh1sI6",
+    planName:"EazyCore",
+    description:"For solo founders & small teams starting their automation journey Focus on what matters most — your customers. EazyCore gives you the essential tools to streamline daily operations, automate tasks, and save hours every week without any complexity. Perfect for: Small Business with simple workflows",
+    amount:499,
+    period:"per Month",
+    features:[
+      "Up to 3 users",
+      "1000 tasks/month",
+      "Basic automations",
+      "Email support",
+    ],
+    popular:false
+  },
+  {
+    id:"plan_RPRGOw4DkGHcxU",
+    planName:"EazyPro",
+    description:"Most popular model for growing teams who want smarter workflows and collaboration Scale with confidence. EazyPro unlocks advanced automations, multiple user seats, and team-level analytics to keep everyone in sync. With priority support and deeper integrations, you can deliver faster, track performance, and make better data-driven decisions. Perfect for: Small to medium businesses scaling operations.",
+    amount:899,
+    period:"per Month",
+    features:[
+      "Up to 3 users",
+      "1000 tasks/month",
+      "Basic automations",
+      "Email support",
+    ],
+    popular:true
+  },
+  {
+    id:"plan_RPRH7EvKaY4l25",
+    planName:"EazyElite",
+    description:"For businesses that demand premium performance and personal onboarding Your success, handled personally. EazyElite brings everything in EazyPro plus white-glove onboarding, dedicated support, and enterprise-grade automation tools built for scale. Enjoy exclusive insights, SLA commitments, and VIP access to our roadmap.",
+    amount: 1499,
+    period:"per month",
+    features:[
+      "Up to 3 users",
+      "1000 tasks/month",
+      "Basic automations",
+      "Email support",
+    ],
+    popular:false
+  }
+]
 
 export default function PricingPage() {
   const router = useRouter();
-  const [annual, setAnnual] = React.useState(false);
-  const [loadingPlan, setLoadingPlan] = React.useState(null);
-  const [menuOpen, setMenuOpen] = React.useState(false);
-  const {user,isLoaded} = useUser();
-  const [plans,setPlans]= useState([]);
-  const [popularPlanId, setPopularPlanId] = useState("plan_RPH6h9QrtdXn2f"); 
-
-  useEffect(()=>{
-    const fetchPlans = async () => {
-      const res = await fetch(`/api/plans`);
-      const data = await res.json();
-      data.items.sort((a, b) => a.item.amount - b.item.amount);
-      setPlans(data.items);
-      
-    };
-    fetchPlans();
-  }, []);
+  const [annual, setAnnual] =useState(false);
+  const [loadingPlan, setLoadingPlan] =useState(null);
 
 
   async function handleSubscribe(plan) {
@@ -70,252 +140,15 @@ export default function PricingPage() {
 
   return (
     <>
-      <header className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 pt-4 relative bg-[#A9DEF9]">
-        {/* Main header row */}
-        <div className="flex items-center justify-between">
-          {/* Left: hamburger (mobile) + desktop logo+title */}
-          <div className="flex items-center gap-3">
-            {/* Hamburger (mobile only) */}
-            <button
-              onClick={() => setMenuOpen((s) => !s)}
-              aria-label={menuOpen ? "Close menu" : "Open menu"}
-              className="md:hidden inline-flex items-center justify-center p-2 rounded-md focus:outline-none"
-            >
-              {menuOpen ? (
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden
-                >
-                  <path
-                    d="M6 6L18 18"
-                    stroke="#14213D"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M6 18L18 6"
-                    stroke="#14213D"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden
-                >
-                  <path
-                    d="M4 7h16"
-                    stroke="#14213D"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M4 12h16"
-                    stroke="#14213D"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M4 17h16"
-                    stroke="#14213D"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-            </button>
+      <Navbar/>
 
-            {/* Desktop: logo + title (hidden on mobile) */}
-            <div className="hidden md:flex items-center space-x-3">
-              <div className="rounded-full w-14 h-14 overflow-hidden flex items-center justify-center">
-                <Image
-                  src={logo}
-                  alt="EasyBeezy logo"
-                  width={56}
-                  height={56}
-                  className="object-contain w-12 h-12"
-                />
-              </div>
-
-              <div>
-                <Link href="/">
-                <h1
-                  className="text-base sm:text-lg font-extrabold text-[#00537a]"
-                  // style={{ color: "var(--eb-navy)" }}
-                >
-                  EazyBeezy
-                </h1></Link>
-                <p className="text-[10px] sm:text-xs eb-muted -mt-1">
-                  Business utilities made easy
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Center: mobile title (visible on mobile, hidden on md+) */}
-          <div className=" flex md:hidden items-center space-x-3">
-            <div className="rounded-full w-14 h-14 overflow-hidden flex items-center justify-center">
-              <Image
-                src={logo}
-                alt="EasyBeezy logo"
-                width={56}
-                height={56}
-                className="object-contain w-12 h-12"
-              />
-            </div>
-
-            <div>
-              <h1
-                className="text-base sm:text-lg font-extrabold"
-                style={{ color: "var(--eb-navy)" }}
-              >
-                EazyBeezy
-              </h1>
-              <p className="text-[10px] sm:text-xs eb-muted -mt-1">
-                Business utilities made easy
-              </p>
-            </div>
-          </div>
-
-          {/* Right: desktop nav (md+) OR sign-in text (mobile) */}
-          <div className="flex items-center gap-3">
-            {/* Desktop nav (unchanged) */}
-            <nav className="hidden md:flex items-center gap-4">
-              <a className="text-sm eb-muted hover:text-[var(--eb-navy)] cursor-pointer">
-                Features
-              </a>
-              <Link
-                href="/pricing"
-                className="text-sm eb-muted hover:text-[var(--eb-navy)] cursor-pointer"
-              >
-                Pricing
-              </Link>
-              <a className="text-sm eb-muted hover:text-[var(--eb-navy)] cursor-pointer">
-                Customers
-              </a>
-
-              <div className="flex items-center space-x-2 flex-nowrap">
-                {!user ? (
-                  <>
-                    <SignUpButton mode="modal">
-                      <Button
-                        className="px-3 py-2 rounded-md text-sm"
-                        style={{
-                          background: "transparent",
-                          border: "1px solid rgba(20,33,61,0.08)",
-                          color: "var(--eb-navy)",
-                        }}
-                      >
-                        Sign Up
-                      </Button>
-                    </SignUpButton>
-
-                    <SignInButton mode="modal">
-                      <Button
-                        className="px-3 py-2 rounded-md text-sm font-medium eb-rounded-shadow text-[#f1faee] bg-[#00537a]"
-                        style={{
-                          // background: "var(--eb-royal)",
-                          // color: "var(--eb-white)",
-                        }}
-                      >
-                        Sign In
-                      </Button>
-                    </SignInButton>
-                  </>
-                ) : (
-                  <UserButton/>
-                    
-                )}
-              </div>
-            </nav>
-
-            {/* Mobile: Sign In title-only on right */}
-            {!user ? (
-              <div className="md:hidden">
-                <SignUpButton mode="modal">
-                  <Button
-                    className="w-full px-3 py-2 rounded-md text-sm"
-                    style={{
-                      background: "var(--eb-royal)",
-                      color: "var(--eb-white)",
-                    }}
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Sign Up
-                  </Button>
-                </SignUpButton>
-              </div>
-            ) : (
-              <div className=" md:hidden pt-2">
-                <UserButton/>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Mobile menu panel (slide-down area) */}
-        {menuOpen && (
-          <div className="md:hidden mt-3 w-full bg-white eb-rounded-shadow eb-card p-4 z-40">
-            <div className="flex flex-col gap-3">
-              <a
-                onClick={() => setMenuOpen(false)}
-                className="text-base eb-muted hover:text-[var(--eb-navy)] cursor-pointer"
-              >
-                Features
-              </a>
-              <a
-                onClick={() => setMenuOpen(false)}
-                className="text-base eb-muted hover:text-[var(--eb-navy)] cursor-pointer"
-              >
-                Pricing
-              </a>
-              <a
-                onClick={() => setMenuOpen(false)}
-                className="text-base eb-muted hover:text-[var(--eb-navy)] cursor-pointer"
-              >
-                Customers
-              </a>
-
-              <div className="pt-2">
-                {!user ? (
-                  <SignUpButton mode="modal">
-                    <Button
-                      className="w-full px-3 py-2 rounded-md text-sm"
-                      style={{
-                        background: "var(--eb-royal)",
-                        color: "var(--eb-white)",
-                      }}
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Sign Up
-                    </Button>
-                  </SignUpButton>
-                ) : (
-                  <div>
-                    <UserButton/>
-                    
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </header>
       <main className="min-h-screen bg-[#f1faee] py-16 px-4 sm:px-6 lg:px-8 text-slate-900">
         <section className="mx-auto max-w-7xl">
-          <header className="text-center">
+          <header className="text-center relative">
+            <div className="absolute -z-10 inset-x-0 top-0 h-40 pointer-events-none">
+              <div className="w-full h-full bg-gradient-to-r from-[#E8F8FF] via-[#CFF0FF] to-[#EAF9F9] opacity-60 blur-3xl" />
+            </div>
+
             <h1
               className="text-3xl sm:text-4xl font-extrabold tracking-tight"
               style={{ color: "#00537a" }}
@@ -324,7 +157,7 @@ export default function PricingPage() {
               powerful
             </h1>
             <p className="mt-3 text-slate-700 max-w-2xl mx-auto">
-              Pay every 3 months — plans built for small teams and growing
+              Pay every month or yearly — plans built for small teams and growing
               businesses. High-value automations, onboarding, and priority
               support where it matters.
             </p>
@@ -336,22 +169,19 @@ export default function PricingPage() {
                   className="rounded-md px-3 py-1 text-sm font-semibold"
                   style={{ backgroundColor: "#0A4BA8", color: "#FFEAA3" }}
                 >
-                  3 months
+                  {annual?"Annual":"Monthly"}
                 </div>
                 <div className="flex items-center gap-2 ml-3">
                   <Switch
                     checked={annual}
-                    onCheckedChange={(v) => setAnnual(!!v)}
+                    onCheckedChange={(v) => setAnnual(v)}
                   />
-                  <span className="text-sm text-slate-600">
-                    (Future yearly option)
-                  </span>
                 </div>
+                
               </div>
 
               <div
                 className="mt-3 sm:mt-0 text-sm font-medium text-[#00537a]"
-                
               >
                 Limited onboarding seats for EazyElite — book now
               </div>
@@ -361,13 +191,12 @@ export default function PricingPage() {
           {/*  Plans grid */}
 
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {plans.map((plan) => (
+            {(annual ? AnnualPlans : MonthlyPlans).map((plan) => (
               <Card
                 key={plan.id}
                 className={`relative overflow-visible transform transition-all duration-300 hover:translate-y-[-6px] ${
                   plan.id === popularPlanId ? "shadow-2xl" : "shadow"
-                } bg-[#00537a]`}
-                //  bg-gradient-to-br from-[#0b0c0f] via-[#1f2937] to-[#111827] text-slate-100
+                } bg-gradient-to-br from-[#00537a] to-[#073b63] text-slate-100 border-0 rounded-2xl`}
               >
                 {/* Golden ribbon for popular plan */}
                 {plan.id === popularPlanId && (
@@ -390,26 +219,23 @@ export default function PricingPage() {
                     <div>
                       <CardTitle
                         className="text-lg font-semibold"
-                        style={{ color: "#E6EEF9" }}
                       >
-                        {plan.item.name}
+                        {plan.planName}
                       </CardTitle>
-                      <CardDescription className="text-sm text-slate-300">
-                        {plan.item.description}
+                      <CardDescription className="text-sm text-slate-200">
+                        {plan.description}
                       </CardDescription>
                     </div>
 
                     <div className="text-right flex flex-col items-end">
                       <div
-                        className="text-3xl font-extrabold"
+                        className="text-3xl font-extrabold bg-clip-text text-transparent"
                         style={{
                           background: "linear-gradient(90deg,#FFD24C,#FFB83A)",
                           WebkitBackgroundClip: "text",
-                          backgroundClip: "text",
-                          color: "transparent",
                         }}
                       >
-                        ₹{plan.item.amount / 100}
+                        ₹{plan.amount}
                       </div>
                       <div className="text-sm text-slate-400">
                         {plan.period}
@@ -420,7 +246,7 @@ export default function PricingPage() {
 
                 <CardContent>
                   <ul role="list" className="space-y-3 mb-6">
-                    {/* {plan.features.map((f) => (
+                    {plan.features.map((f) => (
                       <li key={f} className="flex items-start gap-3">
                         <span
                           className="mt-1 flex items-center justify-center rounded-full h-6 w-6"
@@ -433,28 +259,24 @@ export default function PricingPage() {
                         </span>
                         <span className="text-sm text-slate-200">{f}</span>
                       </li>
-                    ))} */}
+                    ))}
                   </ul>
 
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <Button
-                      onClick={() => handleSubscribe(plan)}
+                      // onClick={() => handleSubscribe(plan)}
                       className={`w-full sm:w-auto px-6 py-3 font-semibold shadow-md transition-transform transform hover:-translate-y-0.5 focus:outline-none ${
                         plan.id === popularPlanId
                           ? "bg-gradient-to-r from-[#FFD24C] to-[#FFB83A] text-black"
                           : "bg-white border border-[#FFD24C] text-[#0A4BA8]"
-                      }`}
+                      } rounded-xl`}
                       disabled={loadingPlan === plan.id}
                     >
                       {loadingPlan === plan.id ? "Processing..." : "Subscribe Now"}
                       <ChevronRight className="ml-2 h-4 w-4" />
                     </Button>
-                    {/* <RazorpayForm 
-                        src={plan.src}
-                        id={plan.planid}
-                      /> */}
 
-                    <div className="mt-2 sm:mt-0 text-xs text-slate-400">
+                    <div className="mt-2 sm:mt-0 text-xs text-slate-200">
                       <div>Cancel anytime. Secure payments via Razorpay.</div>
                     </div>
                   </div>
@@ -467,7 +289,7 @@ export default function PricingPage() {
                           "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))",
                       }}
                     >
-                      <div className="font-medium" style={{ color: "#A7C9FF" }}>
+                      <div className="font-medium text-[#A7C9FF]">
                         Why customers pick EazyPro
                       </div>
                       <div className="text-sm text-slate-300">
@@ -483,19 +305,13 @@ export default function PricingPage() {
 
           <section className="mt-12 grid gap-8 lg:grid-cols-2">
             <div>
-              <Card className="overflow-hidden bg-gradient-to-br 
-              text-slate-100 bg-[#00537a]">
-                {/* from-[#0b0c0f] via-[#1f2937] to-[#111827]  */}
+              <Card className="overflow-hidden bg-gradient-to-br from-[#184e77] to-[#0a2f4a] text-slate-100 rounded-2xl shadow-lg">
                 <div
-                  className="py-6 px-6 bg-[#1d3557] m-3 rounded-2xl"
-                  // style={{
-                  //   background: "linear-gradient(90deg,#0b1220, #0d1630)",
-                  // }}
+                  className="py-6 px-6 m-3 rounded-2xl bg-gradient-to-br from-[#1d3557] to-[#123253] shadow-inner"
                 >
                   <CardHeader className="p-0">
                     <CardTitle
                       className="text-lg font-semibold "
-                      // style={{ color: "#E6EEF9" }}
                     >
                       {`What's Included`}
                     </CardTitle>
@@ -523,8 +339,7 @@ export default function PricingPage() {
                       </div>
                       <div>
                         <div
-                          className="font-medium"
-                          style={{ color: "#E6EEF9" }}
+                          className="font-medium text-slate-100"
                         >
                           Automations
                         </div>
@@ -549,8 +364,7 @@ export default function PricingPage() {
                       </div>
                       <div>
                         <div
-                          className="font-medium"
-                          style={{ color: "#E6EEF9" }}
+                          className="font-medium text-slate-100"
                         >
                           Integrations
                         </div>
@@ -575,8 +389,7 @@ export default function PricingPage() {
                       </div>
                       <div>
                         <div
-                          className="font-medium"
-                          style={{ color: "#E6EEF9" }}
+                          className="font-medium text-slate-100"
                         >
                           Security
                         </div>
@@ -601,8 +414,7 @@ export default function PricingPage() {
                       </div>
                       <div>
                         <div
-                          className="font-medium"
-                          style={{ color: "#E6EEF9" }}
+                          className="font-medium text-slate-100"
                         >
                           Support
                         </div>
@@ -622,11 +434,11 @@ export default function PricingPage() {
 
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 
-                <div className="inline-flex items-center gap-2 rounded-md border border-[#E6EEF9] px-3 py-1 text-sm text-gray-600">
+                <div className="inline-flex items-center gap-2 rounded-md border border-[#E6EEF9] px-3 py-1 text-sm text-gray-600 bg-white/30 backdrop-blur-sm">
                   <Star className="h-4 w-4" style={{ color: "#0A4BA8" }} />
                   <span>Secure payments (Razorpay)</span>
                 </div>
-                <div className="inline-flex items-center gap-2 rounded-md border border-[#E6EEF9] px-3 py-1 text-sm text-gray-600">
+                <div className="inline-flex items-center gap-2 rounded-md border border-[#E6EEF9] px-3 py-1 text-sm text-gray-600 bg-white/30 backdrop-blur-sm">
                   <Star className="h-4 w-4" style={{ color: "#FFD24C" }} />
                   <span>Priority onboarding for Elite</span>
                 </div>
@@ -635,13 +447,11 @@ export default function PricingPage() {
 
             <div>
               <Card 
-              // className="bg-gradient-to-br from-[#0b0c0f] via-[#1f2937] to-[#111827] text-slate-100"
-              className={"bg-[#00537a] text-slate-100"}
+              className={"bg-gradient-to-br from-[#0b4a76] to-[#052f44] text-slate-100 rounded-2xl shadow-lg"}
               >
                 <CardHeader>
                   <CardTitle
                     className="text-lg font-semibold"
-                    style={{ color: "#E6EEF9" }}
                   >
                     FAQ
                   </CardTitle>
@@ -653,7 +463,7 @@ export default function PricingPage() {
                 <CardContent>
                   <div className="space-y-4 text-slate-300">
                     <div>
-                      <div className="font-medium" style={{ color: "#E6EEF9" }}>
+                      <div className="font-medium text-slate-100">
                         Can I switch plans later?
                       </div>
                       <div className="text-sm">
@@ -663,7 +473,7 @@ export default function PricingPage() {
                     </div>
 
                     <div>
-                      <div className="font-medium" style={{ color: "#E6EEF9" }}>
+                      <div className="font-medium text-slate-100">
                         Do you offer refunds?
                       </div>
                       <div className="text-sm">
@@ -673,7 +483,7 @@ export default function PricingPage() {
                     </div>
 
                     <div>
-                      <div className="font-medium" style={{ color: "#E6EEF9" }}>
+                      <div className="font-medium text-slate-100">
                         How do payments work?
                       </div>
                       <div className="text-sm">
@@ -688,8 +498,7 @@ export default function PricingPage() {
                   <Star className="h-6 w-6" style={{ color: "#FFD24C" }} />
                   <div>
                     <div
-                      className="text-sm font-medium"
-                      style={{ color: "#E6EEF9" }}
+                      className="text-sm font-medium text-slate-100"
                     >
                       Need onboarding?
                     </div>
@@ -705,7 +514,7 @@ export default function PricingPage() {
 
           <div className="mt-12 text-center text-sm text-slate-700">
             <div>
-              Have questions?{" "}
+              Have questions? {" "}
               <a
                 href="mailto:support@eazybeezy.com"
                 className="underline"

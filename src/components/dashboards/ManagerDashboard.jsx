@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Plus, UserPlus, Users, List } from "lucide-react";
 import { Button } from "../ui/button";
-import { Switch } from "../ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import toast, { Toaster } from "react-hot-toast";
-
+import { unstable_cache } from "next/cache";
 import ManagerDashboardEmployees from "./ManagerDashboardEmployees";
 import AddSaleOrderForm from "../addSaleOrder";
 import ManagerDashboardParties from "./ManagerDashboardParties";
@@ -49,7 +49,9 @@ export default function ManagerDashboard({ currUser }) {
     setLoadingEmployees(true);
     setFetchError(null);
     try {
-      const res = await fetch(`/api/employees?managerId=${encodeURIComponent(managerId)}`);
+      const res = await fetch(`/api/employees?managerId=${encodeURIComponent(managerId)}`,{
+        next:{tags: ['employees'],revalidate:150}
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error || `Failed to fetch employees (${res.status})`);
@@ -76,7 +78,9 @@ export default function ManagerDashboard({ currUser }) {
     setLoadingParties(true);
     setFetchError(null);
     try {
-      const res = await fetch(`/api/parties?managerId=${encodeURIComponent(managerId)}`);
+      const res = await fetch(`/api/parties?managerId=${encodeURIComponent(managerId)}`,{
+        next:{tags: ['parties'],revalidate:150}
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error || `Failed to fetch parties (${res.status})`);
@@ -210,15 +214,7 @@ export default function ManagerDashboard({ currUser }) {
 
         {/* Right controls */}
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-          {/* Switch + label */}
-          <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-800 px-2 py-1 rounded-md">
-            <Switch checked={partyView} onCheckedChange={(checked) => setPartyView(checked)} />
-            <div className="sm:flex flex-col text-xs">
-              <span className="font-medium">{partyView ? "Parties" : "Employees"}</span>
-              <span className=" hidden md:block text-[11px] text-gray-500">{partyView ? "View parties" : "View employees"}</span>
-            </div>
-          </div>
-
+          
           {/* Add Employee Dialog */}
           <Dialog open={empDialogOpen} onOpenChange={setEmpDialogOpen}>
             <DialogTrigger asChild>
@@ -284,36 +280,19 @@ export default function ManagerDashboard({ currUser }) {
           </Dialog>
         </div>
       </div>
-
-      {/* Top summary / quick actions row (responsive) */}
-      {/* <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-        <div className="col-span-1 sm:col-span-2 bg-white dark:bg-slate-900 rounded-lg shadow-sm p-3 flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">Overview</h3>
-            <p className="mt-1 text-xs text-gray-500">Quick snapshot and actions</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="ghost" onClick={() => { fetchEmployees(); toast.success("Refreshed employees"); }}>
-              <List size={16} />
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
-            <Button size="sm" onClick={() => setEmpDialogOpen(true)}>
-              <Plus size={14} />
-              <span className="hidden sm:inline">Add</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm p-3 flex flex-col">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">View</h3>
-            <div className="text-xs text-gray-500">{partyView ? "Parties mode" : "Employees mode"}</div>
-          </div>
-          <div className="mt-2 text-xs text-gray-500">
-            Toggle between Employees and Parties. New entries appear after refresh.
-          </div>
-        </div> */}
-      {/* </div> */}
+      {/* tabs + label */}
+      <div className="flex w-full max-w-sm flex-col gap-6 mb-4">
+      <Tabs defaultValue={partyView ? "parties" : "employees"}>
+        <TabsList>
+          <TabsTrigger className={"cursor-pointer text-md"} value="employees" onClick={() => setPartyView(false)}>
+            Employees
+          </TabsTrigger>
+          <TabsTrigger className={"cursor-pointer text-md"} value="parties" onClick={() => setPartyView(true)}>
+            Parties
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+      </div>
 
       {/* Main content area */}
       <div className="w-full">
@@ -364,30 +343,6 @@ export default function ManagerDashboard({ currUser }) {
         ) : null}
       </div>
 
-      {/* Mobile sticky quick actions */}
-      {/* <div className="fixed left-0 right-0 bottom-4 px-4 sm:px-6 md:hidden pointer-events-none">
-        <div className="mx-auto max-w-lg pointer-events-auto flex items-center justify-between bg-white/95 dark:bg-slate-800/90 backdrop-blur rounded-xl shadow-lg p-2">
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant={partyView ? "ghost" : "default"} onClick={() => setPartyView(false)} className="inline-flex items-center space-x-2">
-              <Users />
-              <span className="text-xs">Employees</span>
-            </Button>
-            <Button size="sm" variant={partyView ? "default" : "ghost"} onClick={() => setPartyView(true)} className="inline-flex items-center space-x-2">
-              <UserPlus />
-              <span className="text-xs">Parties</span>
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={() => setEmpDialogOpen(true)}>
-              + Add
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => { fetchEmployees(); fetchParties(); toast.success("Refreshed"); }}>
-              Refresh
-            </Button>
-          </div>
-        </div>
-      </div> */}
     </div>
   );
 }

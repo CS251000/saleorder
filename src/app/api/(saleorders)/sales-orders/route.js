@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { saleOrder, agents, party, employees, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { revalidateTag } from "next/cache";
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
@@ -127,9 +128,15 @@ export async function POST(req) {
       .set({pendingOrders: pending})
       .where(eq(employees.employeeId,staff));
 
+      revalidateTag("employees");
+
       const upParty= await db.update(party)
       .set({pendingCases: pendingparty})
       .where(eq(party.id,partyId));
+      revalidateTag("parties");
+
+      revalidateTag(`employee-sales-orders-${staff}`);
+      revalidateTag(`party-sales-orders-${partyId}`);
 
     return NextResponse.json({ message: "Sale order created", saleOrder: newOrder[0] }, { status: 201 });
   } catch (err) {
@@ -176,6 +183,11 @@ export async function DELETE(req){
     .where(eq(party.id,existingOrder[0].partyId));
 
     const delOrder= await db.delete(saleOrder).where(eq(saleOrder.id, orderId));
+
+    revalidateTag("employees");
+    revalidateTag("parties");
+    revalidateTag(`employee-sales-orders-${existingOrder[0].staff}`);
+    revalidateTag(`party-sales-orders-${existingOrder[0].partyId}`);
 
     return NextResponse.json({ message: "Order deleted" }, { status: 200 });
     

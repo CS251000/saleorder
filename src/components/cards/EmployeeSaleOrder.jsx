@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import toast from "react-hot-toast";
 import { formattedDate } from "@/lib/constants";
+import EditSaleOrderForm from "../EditSaleIOrder";
 
-export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,handleDeleteOrder }) {
+export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,handleDeleteOrder,managerId,onUpdated,currUser,updating }) {
   const [open, setOpen] = useState(false);
   const [dispatchCount, setDispatchCount] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -142,7 +143,7 @@ export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,han
 
         <CardFooter className="flex justify-between">
           {userRole==="Manager" && (
-          <Button variant={'outline'} className={'cursor-pointer'}
+          <Button variant={'destructive'} className={'cursor-pointer p-4 bg-red-700'}
             onClick={()=>{
               handleDeleteOrder(SaleOrder.id);
             }}
@@ -151,16 +152,24 @@ export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,han
           </Button>
           )}
           {String(SaleOrder.orderStatus ?? SaleOrder.status) === "Dispatched" ||
+          Number(pendingDisplay) === 0 ?null:(
+          <Button variant={'outline'} className={'cursor-pointer p-4'}>
+            Edit 
+          </Button>
+          
+        )}
+          
+          {String(SaleOrder.orderStatus ?? SaleOrder.status) === "Dispatched" ||
           Number(pendingDisplay) === 0 ? (
             <Button
-              className="px-6 bg-green-600 cursor-not-allowed"
+              className="bg-green-600 cursor-not-allowed"
               disabled
             >
               Dispatched
             </Button>
           ) : (
             <Button
-              className="px-6 bg-[#0D1B2A]"
+              className=" bg-[#0D1B2A]"
               onClick={openModal}
             >
               Dispatch

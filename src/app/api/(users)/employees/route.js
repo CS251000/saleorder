@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { employees, users } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
-
+import { eq } from "drizzle-orm";
+import { revalidateTag } from "next/cache";
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -22,6 +22,8 @@ export async function POST(req) {
         managerId,
       })
       .returning();
+
+      revalidateTag("employees");
 
     return NextResponse.json(newEmployee, { status: 201 });
   } catch (error) {

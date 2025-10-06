@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { party,saleOrder } from "@/db/schema";
+import { party } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { revalidateTag } from "next/cache";
 
 export async function GET(req) {
   const {searchParams} = new URL(req.url);
@@ -48,6 +49,8 @@ export async function POST(req) {
         managerId: party.managerId
       })
       .then((res) => res[0]);
+
+      revalidateTag("parties");
     return NextResponse.json({ party: newParty });
   } catch (error) {
     console.error("Error adding party:", error);

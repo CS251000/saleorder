@@ -6,9 +6,11 @@ import { Card, CardHeader, CardTitle } from "../ui/card";
 import { useUser } from "@clerk/nextjs";
 import PartySaleOrder from "../cards/PartySaleOrder";
 import toast, { Toaster } from "react-hot-toast";
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
+import PartyEmployeeDashboardSkeleton from "../skeletons/party-employee-dashboards";
 
 export default function PartyDashboard({ partyId }) {
-  const[party, setParty] = useState(null);
+  const [party, setParty] = useState(null);
   const [salesOrders, setSalesOrders] = useState([]);
   const [pendingOrders, setPendingOrders] = useState([]);
   const [pendingCases, setPendingCases] = useState(0);
@@ -16,11 +18,8 @@ export default function PartyDashboard({ partyId }) {
   const [completedOrders, setCompletedOrders] = useState([]);
   const [showPending, setShowPending] = useState(true);
   const { user, isLoaded } = useUser();
-  const [searchTerm,setSearchTerm]= useState("");
-
-
-  
-
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading,setLoading]=useState(false);
   const getPending = (o) =>
     Number(o?.pendingCase ?? o?.pending_case ?? o?.pending ?? 0);
 
@@ -42,32 +41,31 @@ export default function PartyDashboard({ partyId }) {
   //Search
 
   useEffect(() => {
-      if (!searchTerm || searchTerm.trim() === "") {
-        // reset to all orders (partitionFromOrders will partition salesOrders)
-        const { pending, completed } = partitionFromOrders(salesOrders);
-        setPendingOrders(pending);
-        setCompletedOrders(completed);
-        return;
-      }
-      const lowerTerm = searchTerm.trim().toLowerCase();
-      const filtered = salesOrders.filter((o) => {
-        const ordernumber = o.orderNumber;
-        const partyName = o.partyName || "";
-        const employeeName= o.employeeName || "";
-        const agentName = o.agentName || "";
-        return (
-          (ordernumber &&
-            String(ordernumber).toLowerCase().includes(lowerTerm)) ||
-          (partyName && partyName.toLowerCase().includes(lowerTerm)) ||
-          (employeeName && employeeName.toLowerCase().includes(lowerTerm)) ||
-          (agentName && agentName.toLowerCase().includes(lowerTerm))
-        );
-      });
-      const { pending, completed } = partitionFromOrders(filtered);
+    if (!searchTerm || searchTerm.trim() === "") {
+      // reset to all orders (partitionFromOrders will partition salesOrders)
+      const { pending, completed } = partitionFromOrders(salesOrders);
       setPendingOrders(pending);
       setCompletedOrders(completed);
-    }, [searchTerm, salesOrders, partitionFromOrders]);
-  
+      return;
+    }
+    const lowerTerm = searchTerm.trim().toLowerCase();
+    const filtered = salesOrders.filter((o) => {
+      const ordernumber = o.orderNumber;
+      const partyName = o.partyName || "";
+      const employeeName = o.employeeName || "";
+      const agentName = o.agentName || "";
+      return (
+        (ordernumber &&
+          String(ordernumber).toLowerCase().includes(lowerTerm)) ||
+        (partyName && partyName.toLowerCase().includes(lowerTerm)) ||
+        (employeeName && employeeName.toLowerCase().includes(lowerTerm)) ||
+        (agentName && agentName.toLowerCase().includes(lowerTerm))
+      );
+    });
+    const { pending, completed } = partitionFromOrders(filtered);
+    setPendingOrders(pending);
+    setCompletedOrders(completed);
+  }, [searchTerm, salesOrders, partitionFromOrders]);
 
   // Recalculate totals whenever salesOrders changes (keeps totals dynamic)
   useEffect(() => {
@@ -83,11 +81,14 @@ export default function PartyDashboard({ partyId }) {
     setDispatchedCases(totalDispatched);
   }, [salesOrders]);
 
-  const fetchSalesOrders= useCallback(async()=>{
-    if(!partyId)return;
-    try{
+  const fetchSalesOrders = useCallback(async () => {
+    if (!partyId) return;
+    try {
+      setLoading(true);
       const res = await fetch(
-        `/api/sales-orders?partyId=${encodeURIComponent(partyId)}`
+        `/api/sales-orders?partyId=${encodeURIComponent(partyId)}`,{
+          next:{tags:[`party-sales-orders-${partyId}`],revalidate:120}
+        }
       );
       if (!res.ok) throw new Error("Failed to fetch sales orders");
       const data = await res.json();
@@ -102,8 +103,10 @@ export default function PartyDashboard({ partyId }) {
     } catch (err) {
       console.error("fetchSalesOrders error:", err);
       toast.error("Could not load sales orders");
+    }finally{
+      setLoading(false);
     }
-  },[partyId, partitionFromOrders]);
+  }, [partyId, partitionFromOrders]);
 
   const handleOnDispatched = async (updatedOrderOrId) => {
     const updatedOrder =
@@ -133,7 +136,6 @@ export default function PartyDashboard({ partyId }) {
       return newList;
     });
     toast.success("Order updated");
-    
   };
 
   const handleDeleteOrder = async (deleteOrderId) => {
@@ -156,7 +158,6 @@ export default function PartyDashboard({ partyId }) {
       setSalesOrders((prev) =>
         prev.filter((o) => String(o.id) !== String(deleteOrderId))
       );
-      
     } catch (err) {
       console.error("Failed to delete order:", err);
       toast.error("Failed to delete order");
@@ -169,8 +170,10 @@ export default function PartyDashboard({ partyId }) {
     }
   }, [isLoaded, fetchSalesOrders]);
 
-  if(!isLoaded){
-    return <div>Loading...</div>;
+  if (!isLoaded || !user || loading) {
+    return (<>
+    <PartyEmployeeDashboardSkeleton />
+    </>);
   }
 
   return (
@@ -179,53 +182,56 @@ export default function PartyDashboard({ partyId }) {
       {/* Header Section */}
       <div className="flex flex-row sm:items-center sm:justify-between gap-4">
         <h2 className="font-bold text-3xl">{party?.name}</h2>
-
-        <div className="flex flex-row gap-4 items-center">
-          {/* Toggle Switch */}
-          <div className="flex items-center space-x-2">
-                <Switch
-                  checked={showPending}
-                  onCheckedChange={(checked) => setShowPending(checked)}
-                />
-
-                <span className="text-sm font-medium">
-                  {showPending ? "Pending Orders" : "Completed Orders"}
-                </span>
-          </div>
-
-          {/* <AddSaleOrderForm
-            currUser={currUser}
-            onCreated={fetchSalesOrders}
-            managerId={managerId}
-            employeeDashboard={true}
-            triggerLabel="Add Sale Order"
-            triggerClassName="flex items-center gap-2"
-          /> */}
+        <div className="relative w-80 mx-auto">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="absolute top-0 bottom-0 w-6 h-6 my-auto text-gray-500 left-3"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+          <Input
+            type="text"
+            placeholder="Search"
+            className="pl-12 pr-4"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
+
+        <div className="flex flex-row gap-4 items-center"></div>
       </div>
 
-      <div className="relative w-80 mx-auto">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="absolute top-0 bottom-0 w-6 h-6 my-auto text-gray-500 left-3"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
+      {/* Toggle tabs */}
+      <div className="flex w-full max-w-sm flex-col gap-6 mb-4">
+        <Tabs
+          defaultValue={showPending ? "pending" : "completed"}
+          className=" rounded-md p-1"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-          />
-        </svg>
-        <Input
-          type="text"
-          placeholder="Search"
-          className="pl-12 pr-4"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+          <TabsList>
+            <TabsTrigger
+              value="pending"
+              className={"cursor-pointer"}
+              onClick={() => setShowPending(true)}
+            >
+              Pending Orders
+            </TabsTrigger>
+            <TabsTrigger
+              value="completed"
+              className={"cursor-pointer"}
+              onClick={() => setShowPending(false)}
+            >
+              Completed Orders
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Orders Header */}
@@ -260,7 +266,6 @@ export default function PartyDashboard({ partyId }) {
             </div>
           </div>
         </CardHeader>
-
       </Card>
 
       {/* Orders Grid */}

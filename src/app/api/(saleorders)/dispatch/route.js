@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { employees, saleOrder, party } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { revalidateTag } from "next/cache";
 
 export async function PUT(req) {
   try {
@@ -94,6 +95,8 @@ export async function PUT(req) {
       })
       .where(eq(employees.employeeId, staff));
 
+      revalidateTag("employees");
+
     const upParty = await db
       .update(party)
       .set({
@@ -101,6 +104,10 @@ export async function PUT(req) {
         dispatchedCases: partyd + dispatchCount,
       })
       .where(eq(party.id, order.partyId));
+
+      revalidateTag("parties");
+      revalidateTag(`employee-sales-orders-${staff}`);
+    revalidateTag(`party-sales-orders-${order.partyId}`);
 
     return NextResponse.json(
       { message: "Order dispatched", saleOrder: updatedOrder },

@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import ManagerDashboardEmployeesSkeleton from "../skeletons/ManagerEmployeesSekeleton";
 
 
 export default function ManagerDashboardEmployees({
@@ -9,6 +10,9 @@ export default function ManagerDashboardEmployees({
   loading = false,
   managerName = "",
 }) {
+  if(loading){
+    return <ManagerDashboardEmployeesSkeleton />
+  }
   return (
     <div>
       <h2 className="text-lg font-bold">Employees under {managerName || "you"}</h2>
@@ -33,13 +37,7 @@ export default function ManagerDashboardEmployees({
           </thead>
 
           <tbody className="bg-white ">
-            {loading ? (
-              <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-lg text-gray-500 border">
-                  Loading employees...
-                </td>
-              </tr>
-            ) : employees.length === 0 ? (
+            {employees.length === 0 ? (
               <tr>
                 <td colSpan={3} className="px-4 py-6 text-center text-lg text-gray-500 border">
                   No employees found.
