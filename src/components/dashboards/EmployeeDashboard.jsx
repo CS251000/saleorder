@@ -11,8 +11,7 @@ import { Input } from "../ui/input";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 import PartyEmployeeDashboardSkeleton from "../skeletons/party-employee-dashboards";
 
-
-  const USER_META_TTL = 1440 * 60 * 1000;
+const USER_META_TTL = 1440 * 60 * 1000;
 
 function readUserMetaFromCache(userId) {
   if (!userId) return null;
@@ -52,8 +51,6 @@ export default function EmployeeDashboard({ currUser }) {
   const [managerId, setManagerId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
-
-
 
   const getPending = (o) =>
     Number(o?.pendingCase ?? o?.pending_case ?? o?.pending ?? 0);
@@ -118,8 +115,12 @@ export default function EmployeeDashboard({ currUser }) {
     try {
       setLoading(true);
       const res = await fetch(
-        `/api/sales-orders?employeeId=${encodeURIComponent(currUser.id)}`,{
-          next: { tags: [`employee-sales-orders-${currUser.id}`], revalidate: 120 },
+        `/api/sales-orders?employeeId=${encodeURIComponent(currUser.id)}`,
+        {
+          next: {
+            tags: [`employee-sales-orders-${currUser.id}`],
+            revalidate: 120,
+          },
         }
       );
       if (!res.ok) throw new Error("Failed to fetch sales orders");
@@ -134,13 +135,12 @@ export default function EmployeeDashboard({ currUser }) {
     } catch (err) {
       console.error("fetchSalesOrders error:", err);
       toast.error("Could not load sales orders");
-    }finally{
+    } finally {
       setLoading(false);
     }
   }, [currUser, partitionFromOrders]);
 
-
- // CACHED role + managerId read + background revalidate
+  // CACHED role + managerId read + background revalidate
   useEffect(() => {
     if (!isLoaded || !currUser) return;
 
@@ -154,7 +154,7 @@ export default function EmployeeDashboard({ currUser }) {
     }
 
     // Revalidate if no cache or stale
-    const shouldFetch = !cached || (now - (cached.ts || 0) >= USER_META_TTL);
+    const shouldFetch = !cached || now - (cached.ts || 0) >= USER_META_TTL;
 
     if (!shouldFetch) return;
 
@@ -170,7 +170,11 @@ export default function EmployeeDashboard({ currUser }) {
         if (fetchedRole === "Employee") {
           // fetch manager id for employees
           try {
-            const mgrRes = await fetch(`/api/manager?employeeId=${encodeURIComponent(data.currentUser.id)}`);
+            const mgrRes = await fetch(
+              `/api/manager?employeeId=${encodeURIComponent(
+                data.currentUser.id
+              )}`
+            );
             if (mgrRes.ok) {
               const datam = await mgrRes.json();
               fetchedManagerId = datam?.managerId ?? null;
@@ -187,13 +191,18 @@ export default function EmployeeDashboard({ currUser }) {
         if (!mounted) return;
         setRole(fetchedRole);
         setManagerId(fetchedManagerId);
-        writeUserMetaToCache(currUser.id, { role: fetchedRole, managerId: fetchedManagerId });
+        writeUserMetaToCache(currUser.id, {
+          role: fetchedRole,
+          managerId: fetchedManagerId,
+        });
       } catch (err) {
         console.error("Error fetching user role:", err);
       }
     })();
 
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [isLoaded, currUser, user]);
 
   // fetch orders once currUser is known
@@ -202,44 +211,46 @@ export default function EmployeeDashboard({ currUser }) {
     fetchSalesOrders();
   }, [currUser, fetchSalesOrders]);
 
-
-
   useEffect(() => {
     if (!currUser?.id) return;
     fetchSalesOrders();
   }, [currUser, fetchSalesOrders]);
 
+  const handleOnDispatched = useCallback(
+    async (updatedOrderOrId) => {
+      const updatedOrder =
+        typeof updatedOrderOrId === "object" ? updatedOrderOrId : null;
+      if (!updatedOrder) {
+        await fetchSalesOrders();
+        return;
+      }
+      const updatedId = updatedOrder.id;
+      if (!updatedId) {
+        await fetchSalesOrders();
+        return;
+      }
+      setSalesOrders((prev) => {
+        const found = prev.some((o) => String(o.id) === String(updatedId));
+        const newList = found
+          ? prev.map((o) =>
+              String(o.id) === String(updatedId)
+                ? { ...o, ...updatedOrder } 
+                : o
+            )
+          : [updatedOrder, ...prev];
 
-  const handleOnDispatched = useCallback(async (updatedOrderOrId) => {
-    const updatedOrder =
-      typeof updatedOrderOrId === "object" ? updatedOrderOrId : null;
-    if (!updatedOrder) {
-      await fetchSalesOrders();
-      return;
-    }
-    const updatedId = updatedOrder.id;
-    if (!updatedId) {
-      await fetchSalesOrders();
-      return;
-    }
-    setSalesOrders((prev) => {
-      const found = prev.some((o) => String(o.id) === String(updatedId));
-      const newList = found
-        ? prev.map((o) =>
-            String(o.id) === String(updatedId) ? updatedOrder : o
-          )
-        : [updatedOrder, ...prev];
+        const { pending, completed } = partitionFromOrders(newList);
+        setPendingOrders(pending);
+        setCompletedOrders(completed);
 
-      // recalc partitions and set them
-      const { pending, completed } = partitionFromOrders(newList);
-      setPendingOrders(pending);
-      setCompletedOrders(completed);
+        return newList;
+      });
 
-      return newList;
-    });
-    toast.success("Order updated");
-    // totals auto-updated by useEffect on salesOrders
-  },[fetchSalesOrders,partitionFromOrders]);
+      toast.success("Order updated");
+      // totals auto-updated by useEffect on salesOrders
+    },
+    [fetchSalesOrders, partitionFromOrders]
+  );
 
   const handleDeleteOrder = useCallback(async (deleteOrderId) => {
     if (!deleteOrderId) return;
@@ -266,13 +277,18 @@ export default function EmployeeDashboard({ currUser }) {
       console.error("Failed to delete order:", err);
       toast.error("Failed to delete order");
     }
-  },[]);
+  }, []);
 
+  const handleOrderUpdated = (updatedOrder) => {
+    setSalesOrders((prev) =>
+      prev.map((o) =>
+        o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o
+      )
+    );
+  };
 
   if (!currUser || !isLoaded || loading) {
-    return (
-      <PartyEmployeeDashboardSkeleton />
-    );
+    return <PartyEmployeeDashboardSkeleton />;
   }
 
   return (
@@ -282,28 +298,28 @@ export default function EmployeeDashboard({ currUser }) {
         <h2 className="font-bold text-3xl">{currUser?.username}</h2>
 
         <div className="relative w-80 mx-auto">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="absolute top-0 bottom-0 w-6 h-6 my-auto text-gray-500 left-3"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="absolute top-0 bottom-0 w-6 h-6 my-auto text-gray-500 left-3"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+          <Input
+            type="text"
+            placeholder="Search"
+            className="pl-12 pr-4"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
-        </svg>
-        <Input
-          type="text"
-          placeholder="Search"
-          className="pl-12 pr-4"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
+        </div>
 
         <div className="flex flex-row gap-4 items-center">
           <AddSaleOrderForm
@@ -317,34 +333,34 @@ export default function EmployeeDashboard({ currUser }) {
         </div>
       </div>
 
-      
-
       {/* Toggle tabs */}
-          <div>
-            {role === "Manager" && (
-              <div className="flex w-full max-w-sm flex-col gap-6 mb-4">
-              <Tabs defaultValue={showPending ? "pending" : "completed"} className=" rounded-md p-1">
-                <TabsList>
-                  <TabsTrigger
-                    value="pending"
-                    className={"cursor-pointer"}
-                    onClick={() => setShowPending(true)}
-                  >
-                    Pending Orders
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="completed"
-                    className={"cursor-pointer"}
-                    onClick={() => setShowPending(false)}
-                  >
-                    Completed Orders
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-              </div>
-                
-            )}
+      <div>
+        {role === "Manager" && (
+          <div className="flex w-full max-w-sm flex-col gap-6 mb-4">
+            <Tabs
+              defaultValue={showPending ? "pending" : "completed"}
+              className=" rounded-md p-1"
+            >
+              <TabsList>
+                <TabsTrigger
+                  value="pending"
+                  className={"cursor-pointer"}
+                  onClick={() => setShowPending(true)}
+                >
+                  Pending Orders
+                </TabsTrigger>
+                <TabsTrigger
+                  value="completed"
+                  className={"cursor-pointer"}
+                  onClick={() => setShowPending(false)}
+                >
+                  Completed Orders
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
+        )}
+      </div>
 
       {/* Orders Header */}
       <Card className="shadow-md p-4">
@@ -378,7 +394,6 @@ export default function EmployeeDashboard({ currUser }) {
             </div>
           </div>
         </CardHeader>
-
       </Card>
 
       {/* Orders Grid */}
@@ -393,6 +408,7 @@ export default function EmployeeDashboard({ currUser }) {
                 handleDeleteOrder={handleDeleteOrder}
                 managerId={managerId}
                 currUser={currUser}
+                onUpdated={handleOrderUpdated}
               />
             </div>
           ))}

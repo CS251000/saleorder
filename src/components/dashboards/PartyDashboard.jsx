@@ -124,8 +124,10 @@ export default function PartyDashboard({ partyId }) {
       const found = prev.some((o) => String(o.id) === String(updatedId));
       const newList = found
         ? prev.map((o) =>
-            String(o.id) === String(updatedId) ? updatedOrder : o
-          )
+              String(o.id) === String(updatedId)
+                ? { ...o, ...updatedOrder } 
+                : o
+            )
         : [updatedOrder, ...prev];
 
       // recalc partitions and set them

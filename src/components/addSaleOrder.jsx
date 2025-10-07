@@ -119,7 +119,8 @@ export default function AddSaleOrderForm({
         // console.log("dashboard", employeeDashboard, currUser?.id);
       } catch (err) {
         console.error("fetch error:", err);
-        toast.error("Could not load parties/agents/employees");
+        if(!managerId)toast.error("Join a team first via manager")
+        else toast.error("Could not load parties/agents/employees");
       }
     }
 

@@ -12,7 +12,7 @@ import toast from "react-hot-toast";
 import { formattedDate } from "@/lib/constants";
 import EditSaleOrderForm from "../EditSaleIOrder";
 
-export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,handleDeleteOrder,managerId,onUpdated,currUser,updating }) {
+export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,handleDeleteOrder,managerId,onUpdated}) {
   const [open, setOpen] = useState(false);
   const [dispatchCount, setDispatchCount] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -153,9 +153,10 @@ export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,han
           )}
           {String(SaleOrder.orderStatus ?? SaleOrder.status) === "Dispatched" ||
           Number(pendingDisplay) === 0 ?null:(
-          <Button variant={'outline'} className={'cursor-pointer p-4'}>
-            Edit 
-          </Button>
+          // <Button variant={'outline'} className={'cursor-pointer p-4'}>
+          //   Edit 
+          // </Button>
+          <EditSaleOrderForm SaleOrder={SaleOrder} managerId={managerId} onUpdated={onUpdated}/>
           
         )}
           

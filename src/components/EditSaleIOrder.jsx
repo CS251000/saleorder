@@ -10,18 +10,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import toast from "react-hot-toast";
-
+import toast, { Toaster } from "react-hot-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
 import {
   Command,
   CommandInput,
@@ -29,24 +20,23 @@ import {
   CommandEmpty,
   CommandItem,
 } from "@/components/ui/command";
-
+import { mutate } from "swr";
 
 export default function EditSaleOrderForm({
   SaleOrder,
   managerId,
-  currUser,
-  employeeDashboard = false,
   triggerLabel = "Edit",
-  triggerClassName = "p-4",
+  triggerClassName = "p-4 cursor-pointer",
+  onUpdated,
 }) {
   const [open, setOpen] = useState(false);
+  const [loading,setLoading]= useState(false);
 
   // lists
   const [parties, setParties] = useState([]);
   const [agents, setAgents] = useState([]);
-  const [employees, setEmployees] = useState([]);
 
-  // party/agent combobox state
+  // combobox state
   const [partyQuery, setPartyQuery] = useState("");
   const [partyId, setPartyId] = useState("");
   const [partyName, setPartyName] = useState("");
@@ -62,79 +52,63 @@ export default function EditSaleOrderForm({
   const agentRef = useRef(null);
 
   // order fields
-  const [employeeId, setEmployeeId] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
   const [orderDate, setOrderDate] = useState("");
   const [totalCases, setTotalCases] = useState("");
+  const [pendingCases,setPendingCases]= useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // populate lists and default fields when dialog opens
+  // populate lists and defaults when dialog opens
   useEffect(() => {
     if (!open) return;
     let mounted = true;
 
     async function fetchAll() {
       try {
-        const [pRes, aRes, eRes] = await Promise.all([
+        setLoading(true);
+        const [pRes, aRes] = await Promise.all([
           fetch(`/api/parties?managerId=${managerId}`),
           fetch(`/api/agents?managerId=${managerId}`),
-          fetch(`/api/employees?managerId=${managerId}`),
         ]);
 
-        if (!pRes.ok || !aRes.ok || !eRes.ok) {
-          throw new Error("Failed to fetch parties/agents/employees");
-        }
+        if (!pRes.ok || !aRes.ok) throw new Error("Failed to fetch parties/agents");
 
-        const [pData, aData, eData] = await Promise.all([
-          pRes.json(),
-          aRes.json(),
-          eRes.json(),
-        ]);
-
+        const [pData, aData] = await Promise.all([pRes.json(), aRes.json()]);
         if (!mounted) return;
 
-        setParties(pData?.parties ?? (Array.isArray(pData) ? pData : pData ?? []));
-        setAgents(aData?.agents ?? (Array.isArray(aData) ? aData : aData ?? []));
-        if (!employeeDashboard) {
-          setEmployees(eData?.employees ?? (Array.isArray(eData) ? eData : eData ?? []));
-        } else {
-          setEmployees([currUser]);
-        }
+        setParties(pData?.parties ?? (Array.isArray(pData) ? pData : []));
+        setAgents(aData?.agents ?? (Array.isArray(aData) ? aData : []));
 
-        // populate form fields from SaleOrder (if provided)
         if (SaleOrder) {
-          // normalise keys with fallbacks
-          const pId = SaleOrder.partyId ?? SaleOrder.party_id ?? SaleOrder.partyId;
-          const pLabel = SaleOrder.partyName ?? SaleOrder.party_name ?? SaleOrder.partyName ?? "";
-          const aId = SaleOrder.agentId ?? SaleOrder.agent_id ?? SaleOrder.agentId;
-          const aLabel = SaleOrder.agentName ?? SaleOrder.agent_name ?? SaleOrder.agentName ?? "";
+          const pId = SaleOrder.partyId ?? SaleOrder.party_id;
+          const pLabel = SaleOrder.partyName ?? SaleOrder.party_name ?? "";
+          const aId = SaleOrder.agentId ?? SaleOrder.agent_id;
+          const aLabel = SaleOrder.agentName ?? SaleOrder.agent_name ?? "";
 
           setPartyId(pId ?? "");
-          setPartyName(pLabel ?? "");
-          setPartyQuery(pLabel ?? "");
+          setPartyName(pLabel);
+          setPartyQuery(pLabel);
 
           setAgentId(aId ?? "");
-          setAgentName(aLabel ?? "");
-          setAgentQuery(aLabel ?? "");
-
-          const staff = SaleOrder.staff ?? SaleOrder.employeeId ?? SaleOrder.staff ?? "";
-          setEmployeeId(staff ? String(staff) : "");
+          setAgentName(aLabel);
+          setAgentQuery(aLabel);
 
           setOrderNumber(SaleOrder.orderNumber ?? SaleOrder.order_number ?? "");
           setOrderDate((SaleOrder.orderDate ?? SaleOrder.order_date ?? "").slice(0, 10) || "");
-          setTotalCases(String(SaleOrder.totalCase ?? SaleOrder.total_cases ?? SaleOrder.totalCase ?? ""));
+          setTotalCases(String(SaleOrder.totalCase  ?? ""));
+          setPendingCases(String(SaleOrder.pendingCase??""));
         }
       } catch (err) {
         console.error("fetch error:", err);
-        toast.error("Could not load parties/agents/employees");
+        toast.error("Could not load parties/agents");
+      }finally{
+        setLoading(false);
       }
     }
 
     fetchAll();
-    return () => {
-      mounted = false;
-    };
-  }, [open, managerId, SaleOrder, employeeDashboard, currUser]);
+    return () => (mounted = false);
+  }, [open, managerId, SaleOrder]);
 
   // outside click to close lists
   useEffect(() => {
@@ -153,8 +127,8 @@ export default function EditSaleOrderForm({
     setAgentQuery("");
     setAgentId("");
     setAgentName("");
-    setEmployeeId("");
     setTotalCases("");
+    setPendingCases("");
     setOrderDate("");
     setOrderNumber("");
     setSubmitting(false);
@@ -163,17 +137,15 @@ export default function EditSaleOrderForm({
   const findPartyByLabel = (label) =>
     parties.find(
       (p) =>
-        String(p.partyName ?? p.name ?? "")
-          .trim()
-          .toLowerCase() === label.trim().toLowerCase()
+        String(p.partyName ?? p.name ?? "").trim().toLowerCase() ===
+        label.trim().toLowerCase()
     );
 
   const findAgentByLabel = (label) =>
     agents.find(
       (a) =>
-        String(a.agentName ?? a.name ?? "")
-          .trim()
-          .toLowerCase() === label.trim().toLowerCase()
+        String(a.agentName ?? a.name ?? "").trim().toLowerCase() ===
+        label.trim().toLowerCase()
     );
 
   const filteredParties = useMemo(() => {
@@ -192,35 +164,26 @@ export default function EditSaleOrderForm({
     );
   }, [agents, agentQuery]);
 
-  // create helpers (same as Add form)
   const createParty = async (name) => {
-    const payload = { partyName: name, managerId };
     const res = await fetch("/api/parties", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ partyName: name, managerId }),
     });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(txt || "Failed to create party");
-    }
+    if (!res.ok) throw new Error("Failed to create party");
     const data = await res.json();
-    return data.party ?? data.newParty ?? data ?? {};
+    return data.party ?? data.newParty ?? data;
   };
 
   const createAgent = async (name) => {
-    const payload = { agentName: name, managerId };
     const res = await fetch("/api/agents", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ agentName: name, managerId }),
     });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(txt || "Failed to create agent");
-    }
+    if (!res.ok) throw new Error("Failed to create agent");
     const data = await res.json();
-    return data.agent ?? data.newAgent ?? data ?? {};
+    return data.agent ?? data.newAgent ?? data;
   };
 
   const handleUpdateOrder = async (e) => {
@@ -230,10 +193,9 @@ export default function EditSaleOrderForm({
       (!partyId && !partyName.trim()) ||
       (!agentId && !agentName.trim()) ||
       !orderDate ||
-      !employeeId ||
       Number(totalCases) <= 0
     ) {
-      toast.error("Fill party, agent, date, employee and total cases (>0).");
+      toast.error("Fill party, agent, date, and total cases (>0).");
       return;
     }
 
@@ -242,80 +204,48 @@ export default function EditSaleOrderForm({
       let finalPartyId = partyId;
       let finalAgentId = agentId;
 
-      // resolve or create party
       if (!finalPartyId && partyName.trim()) {
         const existing = findPartyByLabel(partyName);
-        if (existing) {
-          finalPartyId = existing.partyId ?? existing.id ?? existing.party_id;
-        } else {
-          const created = await createParty(partyName.trim());
-          finalPartyId = created.partyId ?? created.id ?? created.party_id ?? null;
-          if (finalPartyId) setParties((prev) => [created, ...prev]);
-        }
+        finalPartyId = existing
+          ? existing.partyId ?? existing.id
+          : (await createParty(partyName)).partyId;
       }
 
-      // resolve or create agent
       if (!finalAgentId && agentName.trim()) {
         const existing = findAgentByLabel(agentName);
-        if (existing) {
-          finalAgentId = existing.agentId ?? existing.id ?? existing.agent_id;
-        } else {
-          const created = await createAgent(agentName.trim());
-          finalAgentId = created.agentId ?? created.id ?? created.agent_id ?? null;
-          if (finalAgentId) setAgents((prev) => [created, ...prev]);
-        }
+        finalAgentId = existing
+          ? existing.agentId ?? existing.id
+          : (await createAgent(agentName)).agentId;
       }
 
-      if (!finalPartyId) throw new Error("Party selection/creation failed");
-      if (!finalAgentId) throw new Error("Agent selection/creation failed");
+      if (!finalPartyId) throw new Error("Party creation failed");
+      if (!finalAgentId) throw new Error("Agent creation failed");
 
       const payload = {
         orderDate,
         partyId: finalPartyId,
         agentId: finalAgentId,
-        staff: employeeId,
         totalCases: Number(totalCases),
-        orderNumber: orderNumber,
+        pendingCases:Number(pendingCases),
+        orderNumber,
       };
 
-      // Preferred: update endpoint with ID in URL
-      const id = SaleOrder.id ?? SaleOrder.orderId ?? SaleOrder.saleOrderId;
-      let res = await fetch(`/api/sales-orders/${id}`, {
+      const id = SaleOrder.id ;
+      const res = await fetch(`/api/sales-orders?id=${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      // fallback: some servers accept PUT to /api/sales-orders with orderId in body
-      if (!res.ok) {
-        // try fallback
-        res = await fetch("/api/sales-orders", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId: id, ...payload }),
-          
-        });
-      }
-
-      if (!res.ok) {
-        const txt = await res.text().catch(() => null);
-        throw new Error(txt || "Failed to update sale order");
-      }
-
+      if (!res.ok) throw new Error("Failed to update sale order");
       const data = await res.json();
-      const updatedOrder = data?.saleOrder ?? data ?? {};
 
       toast.success("Sale order updated");
+      mutate("/api/sales-orders");
       setOpen(false);
       resetForm();
 
-      if (typeof onUpdated === "function") {
-        try {
-          onUpdated(updatedOrder);
-        } catch (err) {
-          console.error("onUpdated callback error:", err);
-        }
-      }
+      onUpdated?.(data.saleOrder ?? data);
     } catch (err) {
       console.error("update order error:", err);
       toast.error(err.message || "Error updating sale order");
@@ -325,7 +255,7 @@ export default function EditSaleOrderForm({
 
   const selectParty = (p) => {
     const label = p.partyName ?? p.name ?? "";
-    const id = p.partyId ?? p.id ?? p.party_id ?? "";
+    const id = p.partyId ?? p.id ?? "";
     setPartyQuery(label);
     setPartyName(label);
     setPartyId(id);
@@ -334,7 +264,7 @@ export default function EditSaleOrderForm({
 
   const selectAgent = (a) => {
     const label = a.agentName ?? a.name ?? "";
-    const id = a.agentId ?? a.id ?? a.agent_id ?? "";
+    const id = a.agentId ?? a.id ?? "";
     setAgentQuery(label);
     setAgentName(label);
     setAgentId(id);
@@ -347,6 +277,7 @@ export default function EditSaleOrderForm({
     setPartyId("");
     setPartyOpen(false);
   };
+
   const chooseCreateAgent = (label) => {
     setAgentQuery(label);
     setAgentName(label);
@@ -359,6 +290,7 @@ export default function EditSaleOrderForm({
     setPartyName("");
     setPartyId("");
   };
+
   const clearAgent = () => {
     setAgentQuery("");
     setAgentName("");
@@ -366,6 +298,8 @@ export default function EditSaleOrderForm({
   };
 
   return (
+    <>
+    <Toaster position="top-right"/>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" className={triggerClassName}>
@@ -373,12 +307,13 @@ export default function EditSaleOrderForm({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit Sale Order</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleUpdateOrder} className="space-y-4 mt-2">
+        {loading?<div><p>"Loading"</p></div>:(
+          <form onSubmit={handleUpdateOrder} className="space-y-4 mt-2">
           {/* Order Number */}
           <div>
             <Label htmlFor="order-number">Order Number</Label>
@@ -387,19 +322,18 @@ export default function EditSaleOrderForm({
               type="text"
               value={orderNumber}
               onChange={(e) => setOrderNumber(e.target.value)}
-              className="mt-1"
               placeholder="Add Order Number"
+              className="mt-1"
             />
           </div>
 
-          {/* PARTY combobox */}
+          {/* Party */}
           <div ref={partyRef} className="bg-gray-300 rounded-3xl w-full p-3">
-            <Label htmlFor="party">Party</Label>
+            <Label>Party</Label>
             <div className="mt-1">
               <Command>
                 <CommandInput
-                  id="party-input"
-                  placeholder="Click to search or create party"
+                  placeholder="Search or create party"
                   value={partyQuery}
                   onValueChange={(val) => {
                     setPartyQuery(val);
@@ -410,54 +344,46 @@ export default function EditSaleOrderForm({
                 {partyOpen && (
                   <CommandList>
                     <CommandEmpty>No parties found.</CommandEmpty>
-                    {filteredParties.map((p) => {
-                      const label = p.partyName ?? p.name ?? "";
-                      return (
-                        <CommandItem
-                          key={String(p.partyId ?? p.id ?? label)}
-                          onSelect={() => selectParty(p)}
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            <span>{label}</span>
-                            {partyId && partyId === (p.partyId ?? p.id ?? "") ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : null}
-                          </div>
-                        </CommandItem>
-                      );
-                    })}
-                    {partyQuery.trim().length > 0 && !findPartyByLabel(partyQuery) && (
-                      <CommandItem onSelect={() => chooseCreateParty(partyQuery)}>
-                        <div className="flex items-center justify-between w-full">
-                          <span>Create new party “{partyQuery}”</span>
+                    {filteredParties.map((p) => (
+                      <CommandItem
+                        key={String(p.partyId ?? p.id)}
+                        onSelect={() => selectParty(p)}
+                      >
+                        <div className="flex justify-between w-full">
+                          <span>{p.partyName ?? p.name}</span>
+                          {partyId === (p.partyId ?? p.id) && (
+                            <Check className="h-4 w-4 text-green-500" />
+                          )}
                         </div>
                       </CommandItem>
-                    )}
+                    ))}
+                    {partyQuery.trim().length > 0 &&
+                      !findPartyByLabel(partyQuery) && (
+                        <CommandItem onSelect={() => chooseCreateParty(partyQuery)}>
+                          <span>Create new party “{partyQuery}”</span>
+                        </CommandItem>
+                      )}
                   </CommandList>
                 )}
               </Command>
             </div>
-
-            {partyName ? (
+            {partyName && (
               <div className="mt-2 inline-flex items-center gap-2 bg-gray-100 px-2 py-1 rounded-full text-sm">
                 <span>{partyName}</span>
-                <button type="button" onClick={clearParty} className="inline-flex items-center" aria-label="Clear party">
+                <button type="button" onClick={clearParty} aria-label="Clear party">
                   <X className="h-4 w-4" />
                 </button>
               </div>
-            ) : (
-              <p className="text-xs text-gray-500 mt-1">Pick a party.</p>
             )}
           </div>
 
-          {/* AGENT combobox */}
+          {/* Agent */}
           <div ref={agentRef} className="bg-gray-300 rounded-3xl w-full p-3">
-            <Label htmlFor="agent">Agent</Label>
+            <Label>Agent</Label>
             <div className="mt-3">
               <Command>
                 <CommandInput
-                  id="agent-input"
-                  placeholder="Click to search or create agent"
+                  placeholder="Search or create agent"
                   value={agentQuery}
                   onValueChange={(val) => {
                     setAgentQuery(val);
@@ -468,69 +394,37 @@ export default function EditSaleOrderForm({
                 {agentOpen && (
                   <CommandList>
                     <CommandEmpty>No agents found.</CommandEmpty>
-                    {filteredAgents.map((a) => {
-                      const label = a.agentName ?? a.name ?? "";
-                      return (
-                        <CommandItem
-                          key={String(a.agentId ?? a.id ?? label)}
-                          onSelect={() => selectAgent(a)}
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            <span>{label}</span>
-                            {agentId && agentId === (a.agentId ?? a.id ?? "") ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : null}
-                          </div>
-                        </CommandItem>
-                      );
-                    })}
-                    {agentQuery.trim().length > 0 && !findAgentByLabel(agentQuery) && (
-                      <CommandItem onSelect={() => chooseCreateAgent(agentQuery)}>
-                        <div className="flex items-center justify-between w-full">
-                          <span>Create new agent “{agentQuery}”</span>
+                    {filteredAgents.map((a) => (
+                      <CommandItem
+                        key={String(a.agentId ?? a.id)}
+                        onSelect={() => selectAgent(a)}
+                      >
+                        <div className="flex justify-between w-full">
+                          <span>{a.agentName ?? a.name}</span>
+                          {agentId === (a.agentId ?? a.id) && (
+                            <Check className="h-4 w-4 text-green-500" />
+                          )}
                         </div>
                       </CommandItem>
-                    )}
+                    ))}
+                    {agentQuery.trim().length > 0 &&
+                      !findAgentByLabel(agentQuery) && (
+                        <CommandItem onSelect={() => chooseCreateAgent(agentQuery)}>
+                          <span>Create new agent “{agentQuery}”</span>
+                        </CommandItem>
+                      )}
                   </CommandList>
                 )}
               </Command>
             </div>
-
-            {agentName ? (
+            {agentName && (
               <div className="mt-2 inline-flex items-center gap-2 bg-gray-100 px-2 py-1 rounded-full text-sm">
                 <span>{agentName}</span>
-                <button type="button" onClick={clearAgent} className="inline-flex items-center" aria-label="Clear agent">
+                <button type="button" onClick={clearAgent} aria-label="Clear agent">
                   <X className="h-4 w-4" />
                 </button>
               </div>
-            ) : (
-              <p className="text-xs text-gray-500 mt-1">Pick an agent (click the field).</p>
             )}
-          </div>
-
-          {/* Employee select */}
-          <div>
-            <Label htmlFor="employee-select">Employee</Label>
-            <Select onValueChange={(val) => setEmployeeId(val)} value={employeeId}>
-              <SelectTrigger id="employee-select" className="mt-1">
-                <SelectValue placeholder="— choose an employee —" />
-              </SelectTrigger>
-              <SelectContent>
-                {employees.map((ee) => {
-                  const id = ee.employeeId ?? ee.id ?? ee.clerkId ?? "";
-                  const label =
-                    ee.employeeName ??
-                    ee.username ??
-                    `${ee.firstName ?? ""} ${ee.lastName ?? ""}`.trim() ??
-                    id;
-                  return (
-                    <SelectItem key={String(id)} value={String(id)}>
-                      {label}
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Total cases */}
@@ -546,14 +440,40 @@ export default function EditSaleOrderForm({
             />
           </div>
 
+          <div>
+            <Label htmlFor="pending_cases">Pending Cases</Label>
+            <Input
+              id="pending-cases"
+              type="number"
+              min={0}
+              value={pendingCases}
+              onChange={(e) => setPendingCases(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+
           {/* Order date */}
           <div>
             <Label htmlFor="order-date">Order Date</Label>
-            <Input id="order-date" type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} className="mt-1" />
+            <Input
+              id="order-date"
+              type="date"
+              value={orderDate}
+              onChange={(e) => setOrderDate(e.target.value)}
+              className="mt-1"
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={() => { setOpen(false); resetForm(); }} disabled={submitting}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setOpen(false);
+                resetForm();
+              }}
+              disabled={submitting}
+            >
               Cancel
             </Button>
 
@@ -562,7 +482,14 @@ export default function EditSaleOrderForm({
             </Button>
           </div>
         </form>
+        )}
+
+        
       </DialogContent>
+      
+
+      
     </Dialog>
+    </>
   );
 }

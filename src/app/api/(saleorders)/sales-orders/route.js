@@ -72,8 +72,6 @@ export async function GET(req) {
   }
   }
 }
-  
-
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -194,5 +192,126 @@ export async function DELETE(req){
   }catch(err){
     console.error("DELETE /api/sales-orders error:", err);
     return NextResponse.json({ error: "Failed to delete sale order" }, { status: 500 });
+  }
+}
+
+export async function PUT(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id"); // sale order id
+
+    if (!id) {
+      return NextResponse.json({ error: "Sale order ID is required" }, { status: 400 });
+    }
+
+    const body = await req.json();
+    const {
+      orderDate,
+      partyId,
+      agentId,
+      totalCases,
+      pendingCases,
+      orderNumber,
+    } = body;
+
+    if (!orderDate || !partyId || !agentId || !totalCases) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    // Fetch the current order to adjust pending counts properly
+    const existingOrder = await db.select().from(saleOrder).where(eq(saleOrder.id, id));
+    if (existingOrder.length === 0) {
+      return NextResponse.json({ error: "Sale order not found" }, { status: 404 });
+    }
+
+    const oldOrder = existingOrder[0];
+    const oldPartyId = oldOrder.partyId;
+    const oldPending = oldOrder.pendingCase;
+    const oldTotal = oldOrder.totalCase;
+
+    // Update sale order
+    const updatedOrder = await db
+      .update(saleOrder)
+      .set({
+        orderDate,
+        partyId,
+        agentId,
+        totalCase: Number(totalCases),
+        pendingCase: Number(pendingCases),
+        orderNumber,
+      })
+      .where(eq(saleOrder.id, id))
+      .returning();
+
+    // Update related employee + party pending counts
+    const employee = await db
+      .select()
+      .from(employees)
+      .where(eq(employees.employeeId, oldOrder.staff));
+
+    if (employee.length > 0) {
+      const emp = employee[0];
+      let updatedPending =
+        (emp.pendingOrders ?? 0) - oldPending + Number(pendingCases);
+      if (updatedPending < 0) updatedPending = 0;
+
+      await db
+        .update(employees)
+        .set({ pendingOrders: updatedPending })
+        .where(eq(employees.employeeId, oldOrder.staff));
+    }
+
+    // Party updates
+    const oldParty = await db.select().from(party).where(eq(party.id, oldPartyId));
+    const newParty = await db.select().from(party).where(eq(party.id, partyId));
+
+    // If party changed, subtract from old and add to new
+    if (oldPartyId !== partyId) {
+      if (oldParty.length > 0) {
+        let oldPendingParty = (oldParty[0].pendingCases ?? 0) - oldPending;
+        if (oldPendingParty < 0) oldPendingParty = 0;
+        await db
+          .update(party)
+          .set({ pendingCases: oldPendingParty })
+          .where(eq(party.id, oldPartyId));
+      }
+
+      if (newParty.length > 0) {
+        let newPendingParty =
+          (newParty[0].pendingCases ?? 0) + Number(pendingCases);
+        await db
+          .update(party)
+          .set({ pendingCases: newPendingParty })
+          .where(eq(party.id, partyId));
+      }
+    } else {
+      // Same party — adjust pending
+      if (newParty.length > 0) {
+        let updatedPendingParty =
+          (newParty[0].pendingCases ?? 0) - oldPending + Number(pendingCases);
+        if (updatedPendingParty < 0) updatedPendingParty = 0;
+        await db
+          .update(party)
+          .set({ pendingCases: updatedPendingParty })
+          .where(eq(party.id, partyId));
+      }
+    }
+
+    // Revalidate relevant caches
+    revalidateTag("employees");
+    revalidateTag("parties");
+    revalidateTag(`employee-sales-orders-${oldOrder.staff}`);
+    revalidateTag(`party-sales-orders-${partyId}`);
+
+    return NextResponse.json(
+      { message: "Sale order updated successfully", saleOrder: updatedOrder[0] },
+      { status: 200 }
+    );
+  } catch (err) {
+    console.error("PUT /api/sales-orders error:", err);
+    return NextResponse.json(
+      { error: "Failed to update sale order" },
+      { status: 500 }
+    );
   }
 }

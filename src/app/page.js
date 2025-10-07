@@ -10,15 +10,13 @@ import {
   useUser,
 } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ManagerDashboard from "@/components/dashboards/ManagerDashboard";
 import EmployeeDashboard from "@/components/dashboards/EmployeeDashboard";
 import LandingPage from "@/components/LandingPage";
 import Image from "next/image";
 import logo from "../../public/assets/logo.png";
-import { CircleUser } from "lucide-react";
-import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import SignupForm from "@/components/SignupForm";
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -26,7 +24,6 @@ export default function Home() {
   const { user, isLoaded } = useUser();
   const clerk = useClerk();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [selectedRole, setSelectedRole] = useState("");
 
   // ✅ Use SWR for fetching current user info once user is loaded
   const { data, error, mutate } = useSWR(
@@ -46,37 +43,6 @@ export default function Home() {
     return unsubscribe;
   }, [clerk, mutate]);
 
-  // ✅ Handle role form submission
-  async function handleFormSubmit(e) {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const role = formData.get("role");
-
-    try {
-      const res = await fetch("/api/user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clerkId: user.id,
-          username: user.username,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role,
-        }),
-      });
-
-      const result = await res.json();
-      if (res.ok) {
-        await mutate(); // 🔄 revalidate SWR data
-      }
-    } catch (err) {
-      console.error("Error saving user:", err);
-    }
-  }
-
-  // ==============================
-  // UI HANDLING SECTION
-  // ==============================
 
   if (!isLoaded) {
     return (
@@ -166,10 +132,6 @@ export default function Home() {
     );
   }
 
-  // ==============================
-  // MAIN PAGE CONTENT
-  // ==============================
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar currUser={currentUser} />
@@ -181,28 +143,7 @@ export default function Home() {
         ) : !data ? (
           <div className="text-lg mt-10">🔍 Checking user...</div>
         ) : !isInDB ? (
-          <Card className="w-[350px] mt-8">
-            <CardHeader>
-              <CardTitle>Select Your Role</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleFormSubmit} className="space-y-4">
-                <select
-                  name="role"
-                  required
-                  className="border rounded p-2 w-full"
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                >
-                  <option value="">-- Choose Role --</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Employee">Employee</option>
-                </select>
-                <Button type="submit" className="w-full">
-                  Save & Continue
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          <SignupForm/>
         ) : currentUser?.role === "Manager" ? (
           <ManagerDashboard currUser={currentUser} />
         ) : (

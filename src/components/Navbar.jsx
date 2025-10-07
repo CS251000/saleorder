@@ -191,9 +191,9 @@ export default function Navbar({currUser}) {
                   <UserButton>
                     <UserButton.MenuItems>
                       <UserButton.Link
-                        label="View User Id"
+                        label="View Profile"
                         labelIcon={<CircleUser />}
-                        href={`/view-user-id?id=${currUser?.id ?? ""}`}
+                        href={`/view-user-profile?id=${currUser?.id ?? ""}`}
                       />
                     </UserButton.MenuItems>
                   </UserButton>
@@ -222,9 +222,9 @@ export default function Navbar({currUser}) {
                 <UserButton>
                   <UserButton.MenuItems>
                     <UserButton.Link
-                      label="View User Id"
+                      label="View Profile"
                       labelIcon={<CircleUser />}
-                      href={`/view-user-id?id=${currUser?.id ?? ""}`}
+                      href={`/view-user-profile?id=${currUser?.id ?? ""}`}
                     />
                   </UserButton.MenuItems>
                 </UserButton>
@@ -277,9 +277,9 @@ export default function Navbar({currUser}) {
                     <UserButton>
                       <UserButton.MenuItems>
                         <UserButton.Link
-                          label="View User Id"
+                          label="View Profile"
                           labelIcon={<CircleUser />}
-                          href={`/view-user-id?id=${currUser?.id ?? ""}`}
+                          href={`/view-user-profile?id=${currUser?.id ?? ""}`}
                         />
                       </UserButton.MenuItems>
                     </UserButton>

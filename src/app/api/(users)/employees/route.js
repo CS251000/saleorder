@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { employees, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidateTag } from "next/cache";
+
+
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -14,6 +16,26 @@ export async function POST(req) {
         { status: 400 }
       );
     }
+
+    const [manager]= await db
+    .select({
+      organization:users.organization,
+    })
+    .from(users)
+    .where(eq(managerId,users.id)).limit(1);
+
+     if (!manager || !manager.organization) {
+      return NextResponse.json(
+        { error: "Manager not found or has no organization" },
+        { status: 404 }
+      );
+    }
+
+    await db
+      .update(users)
+      .set({ organization: manager.organization })
+      .where(eq(users.id, employeeId));
+    
 
     const [newEmployee] = await db
       .insert(employees)

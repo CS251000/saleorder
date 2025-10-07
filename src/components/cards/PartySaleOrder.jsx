@@ -139,6 +139,10 @@ export default function PartySaleOrder({ SaleOrder, onDispatched,handleDeleteOrd
            >
             Delete
           </Button>
+
+          
+
+
           {String(SaleOrder.orderStatus ?? SaleOrder.status) === "Dispatched" ||
           Number(pendingDisplay) === 0 ? (
             <Button

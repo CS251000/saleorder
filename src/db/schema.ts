@@ -7,12 +7,14 @@ export const saleOrderStatus= pgEnum("status",["Dispatched","Pending"]);
 
 export const users= pgTable("users", {
   id: uuid("id").default(sql`gen_random_uuid()`).primaryKey(),
+  createdAt: date("created_at").defaultNow(),
   clerkId: varchar("clerk_id").unique(),
   email: text("email").unique(),
   phone: varchar("phone"),
   username: varchar("username"),
   firstName: text("first_name"),
   lastName: text("last_name"),
+  organization : uuid("organization").references(()=>organizations.id),
   role: roleEnum("role"),
   age: integer("age")
 });
@@ -54,3 +56,12 @@ export const saleOrder= pgTable("sales_order",{
 })
 
 
+
+export const organizations = pgTable("organizations", {
+  id: uuid("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  location: varchar("location", { length: 150 }),
+  website: varchar("website", { length: 255 }),
+  createdBy: uuid("created_by").notNull().references(()=>users.id),
+  createdAt: date("created_at").defaultNow().notNull(),
+});
