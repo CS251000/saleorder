@@ -233,9 +233,7 @@ export default function EmployeeDashboard({ currUser }) {
         const found = prev.some((o) => String(o.id) === String(updatedId));
         const newList = found
           ? prev.map((o) =>
-              String(o.id) === String(updatedId)
-                ? { ...o, ...updatedOrder } 
-                : o
+              String(o.id) === String(updatedId) ? { ...o, ...updatedOrder } : o
             )
           : [updatedOrder, ...prev];
 
@@ -294,10 +292,10 @@ export default function EmployeeDashboard({ currUser }) {
   return (
     <div className="p-6 space-y-6">
       {/* Header Section */}
-      <div className="flex flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="font-bold text-3xl">{currUser?.username}</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h2 className="font-bold text-3xl break-words">{currUser?.username}</h2>
 
-        <div className="relative w-80 mx-auto">
+        <div className="relative w-full sm:w-80">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className="absolute top-0 bottom-0 w-6 h-6 my-auto text-gray-500 left-3"
@@ -314,14 +312,14 @@ export default function EmployeeDashboard({ currUser }) {
           </svg>
           <Input
             type="text"
-            placeholder="Search"
-            className="pl-12 pr-4"
+            placeholder="Search orders..."
+            className="pl-12 pr-4 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        <div className="flex flex-row gap-4 items-center">
+        <div className="flex flex-row gap-3 flex-wrap justify-center sm:justify-end">
           <AddSaleOrderForm
             currUser={currUser}
             onCreated={fetchSalesOrders}
@@ -333,61 +331,48 @@ export default function EmployeeDashboard({ currUser }) {
         </div>
       </div>
 
-      {/* Toggle tabs */}
-      <div>
-        {role === "Manager" && (
-          <div className="flex w-full max-w-sm flex-col gap-6 mb-4">
-            <Tabs
-              defaultValue={showPending ? "pending" : "completed"}
-              className=" rounded-md p-1"
-            >
-              <TabsList>
-                <TabsTrigger
-                  value="pending"
-                  className={"cursor-pointer"}
-                  onClick={() => setShowPending(true)}
-                >
-                  Pending Orders
-                </TabsTrigger>
-                <TabsTrigger
-                  value="completed"
-                  className={"cursor-pointer"}
-                  onClick={() => setShowPending(false)}
-                >
-                  Completed Orders
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        )}
-      </div>
+      {/* Tabs only visible for Manager */}
+      {role === "Manager" && (
+        <div className="w-full flex justify-center sm:justify-start">
+          <Tabs
+            defaultValue={showPending ? "pending" : "completed"}
+            className="w-full sm:w-auto rounded-md p-1"
+          >
+            <TabsList className="flex flex-row justify-around w-full sm:w-auto">
+              <TabsTrigger value="pending" onClick={() => setShowPending(true)}>
+                Pending Orders
+              </TabsTrigger>
+              <TabsTrigger
+                value="completed"
+                onClick={() => setShowPending(false)}
+              >
+                Completed Orders
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      )}
 
       {/* Orders Header */}
-      <Card className="shadow-md p-4">
+      <Card className="shadow-md p-4 w-full">
         <CardHeader className="p-0">
-          <div className="flex flex-col items-start justify-start gap-4">
-            <div>
-              <CardTitle className="text-lg font-semibold leading-tight mb-0">
-                {showPending ? "Pending" : "Completed"}
-              </CardTitle>
-            </div>
-            <div className="flex items-center gap-3">
-              {/* Orders count */}
-              <div className="flex flex-col items-center">
-                <span className="text-lg font-semibold leading-tight">
-                  {showPending ? pendingOrders.length : completedOrders.length}
-                </span>
-                <span className="text-md text-gray-500 leading-tight">
-                  orders
-                </span>
-              </div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <CardTitle className="text-lg font-semibold">
+              {showPending ? "Pending" : "Completed"}
+            </CardTitle>
 
-              {/* Cases badge */}
-              <div className="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-center">
-                <div className="text-lg font-semibold leading-tight">
+            <div className="flex flex-row flex-wrap items-center gap-4">
+              <div className="text-center">
+                <div className="text-lg font-semibold">
+                  {showPending ? pendingOrders.length : completedOrders.length}
+                </div>
+                <div className="text-sm text-gray-500">orders</div>
+              </div>
+              <div className="bg-gray-50 border rounded-lg px-3 py-2 text-center">
+                <div className="text-lg font-semibold">
                   {showPending ? pendingCases : dispatchedCases}
                 </div>
-                <div className="text-md text-gray-500 leading-tight">
+                <div className="text-sm text-gray-500">
                   {showPending ? "Pending Cases" : "Dispatched Cases"}
                 </div>
               </div>
@@ -397,34 +382,20 @@ export default function EmployeeDashboard({ currUser }) {
       </Card>
 
       {/* Orders Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {showPending &&
-          pendingOrders.map((order) => (
-            <div key={order.id} className="h-full">
-              <EmployeeSaleOrder
-                SaleOrder={order}
-                onDispatched={handleOnDispatched}
-                userRole={role}
-                handleDeleteOrder={handleDeleteOrder}
-                managerId={managerId}
-                currUser={currUser}
-                onUpdated={handleOrderUpdated}
-              />
-            </div>
-          ))}
-
-        {!showPending &&
-          completedOrders.map((order) => (
-            <div key={order.id} className="h-full">
-              <EmployeeSaleOrder
-                managerId={managerId}
-                SaleOrder={order}
-                userRole={role}
-                currUser={currUser}
-                handleDeleteOrder={handleDeleteOrder}
-              />
-            </div>
-          ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {(showPending ? pendingOrders : completedOrders).map((order) => (
+          <div key={order.id} className="h-full">
+            <EmployeeSaleOrder
+              SaleOrder={order}
+              onDispatched={handleOnDispatched}
+              userRole={role}
+              handleDeleteOrder={handleDeleteOrder}
+              managerId={managerId}
+              currUser={currUser}
+              onUpdated={handleOrderUpdated}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );
