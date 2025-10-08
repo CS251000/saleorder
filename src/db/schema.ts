@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { date, integer, pgEnum, pgTable, serial, text, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, date, integer, pgEnum, pgTable, serial, text, uuid, varchar } from "drizzle-orm/pg-core";
 
 
 export const roleEnum = pgEnum("role", ["Manager", "Admin","Employee"]);
@@ -52,7 +52,8 @@ export const saleOrder= pgTable("sales_order",{
   totalCase: integer("total_case"),
   pendingCase: integer("pending_case"),
   dispatchedCase: integer("dispatched_case"),
-  status: saleOrderStatus("status").default("Pending")
+  status: saleOrderStatus("status").default("Pending"),
+  edited:boolean("is_edited").default(false)
 })
 
 

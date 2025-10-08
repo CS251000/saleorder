@@ -27,7 +27,7 @@ export default function EditSaleOrderForm({
   managerId,
   triggerLabel = "Edit",
   triggerClassName = "p-4 cursor-pointer",
-  onUpdated,
+  onUpdated
 }) {
   const [open, setOpen] = useState(false);
   const [loading,setLoading]= useState(false);
@@ -132,6 +132,7 @@ export default function EditSaleOrderForm({
     setOrderDate("");
     setOrderNumber("");
     setSubmitting(false);
+    
   };
 
   const findPartyByLabel = (label) =>
@@ -241,10 +242,10 @@ export default function EditSaleOrderForm({
       const data = await res.json();
 
       toast.success("Sale order updated");
+      toast.success("Reload page if not updated")
       mutate("/api/sales-orders");
       setOpen(false);
       resetForm();
-
       onUpdated?.(data.saleOrder ?? data);
     } catch (err) {
       console.error("update order error:", err);

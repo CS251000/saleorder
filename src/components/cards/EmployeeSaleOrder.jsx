@@ -5,6 +5,7 @@ import {
   Card,
   CardContent,
   CardFooter,
+  CardHeader,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -16,6 +17,7 @@ export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,han
   const [open, setOpen] = useState(false);
   const [dispatchCount, setDispatchCount] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isEdited,setIsEdited]= useState(false);
 
   const openModal = () => {
     setDispatchCount("");
@@ -90,6 +92,12 @@ export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,han
   return (
     <div className="h-full flex flex-col">
       <Card className="w-full h-full shadow-lg rounded-2xl">
+        {isEdited&& (
+          <CardHeader>
+          <span className="text-sm text-gray-400 text-left">Edited</span>
+        </CardHeader>
+        )}
+        
         <CardContent className="space-y-3 text-gray-700">
           <div className="flex justify-between">
             <span className="font-medium text-[#415A77]">Order Number:</span>
@@ -153,10 +161,7 @@ export default function EmployeeSaleOrder({ SaleOrder, onDispatched,userRole,han
           )}
           {String(SaleOrder.orderStatus ?? SaleOrder.status) === "Dispatched" ||
           Number(pendingDisplay) === 0 ?null:(
-          // <Button variant={'outline'} className={'cursor-pointer p-4'}>
-          //   Edit 
-          // </Button>
-          <EditSaleOrderForm SaleOrder={SaleOrder} managerId={managerId} onUpdated={onUpdated}/>
+          <EditSaleOrderForm SaleOrder={SaleOrder} managerId={managerId} onUpdated={onUpdated} />
           
         )}
           
