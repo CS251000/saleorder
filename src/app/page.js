@@ -10,19 +10,22 @@ import {
   useUser,
 } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import ManagerDashboard from "@/components/dashboards/ManagerDashboard";
+
 import EmployeeDashboard from "@/components/dashboards/EmployeeDashboard";
 import LandingPage from "@/components/LandingPage";
 import Image from "next/image";
 import logo from "../../public/assets/logo.png";
 import Navbar from "@/components/Navbar";
 import SignupForm from "@/components/SignupForm";
+import Navbar2 from "@/components/Navbar2";
+import { useRouter } from "next/navigation";
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Home() {
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded, isSignedIn } = useUser();
   const clerk = useClerk();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
 
   // ✅ Use SWR for fetching current user info once user is loaded
@@ -31,7 +34,6 @@ export default function Home() {
     fetcher
   );
 
-  // Extracted info
   const currentUser = data?.currentUser || null;
   const isInDB = data?.exists ?? null;
 
@@ -43,11 +45,23 @@ export default function Home() {
     return unsubscribe;
   }, [clerk, mutate]);
 
+  // ✅ Navigation functions (send full user object)
+  const goToTaskManager = () => {
+    if (!currentUser) return;
+    const encoded = encodeURIComponent(JSON.stringify(currentUser));
+    router.push(`/task-manager?user=${encoded}`);
+  };
 
+  const goToProdManager = () => {
+    if (!currentUser) return;
+    const encoded = encodeURIComponent(JSON.stringify(currentUser));
+    router.push(`/prod-manager?user=${encoded}`);
+  };
+
+  // --------------------- LOADING STATE ---------------------
   if (!isLoaded) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 pt-4 relative">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
@@ -81,7 +95,7 @@ export default function Home() {
             <div className="hidden md:flex items-center space-x-3">
               <Image
                 src={logo}
-                alt="EasyBeezy logo"
+                alt="EazyBeezy logo"
                 width={56}
                 height={56}
                 className="object-contain w-12 h-12"
@@ -132,9 +146,15 @@ export default function Home() {
     );
   }
 
+  // --------------------- MAIN UI ---------------------
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar currUser={currentUser} />
+      {isSignedIn && currentUser?.role === "Manager" ? (
+        <Navbar2 currUser={currentUser} />
+      ) : (
+        <Navbar currUser={currentUser} />
+      )}
+
       <main className="flex flex-col items-center justify-center">
         {!user ? (
           <LandingPage />
@@ -143,9 +163,29 @@ export default function Home() {
         ) : !data ? (
           <div className="text-lg mt-10">🔍 Checking user...</div>
         ) : !isInDB ? (
-          <SignupForm/>
-        ) : currentUser?.role === "Manager" ? (
-          <ManagerDashboard currUser={currentUser} />
+          <SignupForm />
+        ) : isSignedIn && currentUser?.role === "Manager" ? (
+          // ✅ Manager dashboard entry
+          <div className="flex flex-col gap-6 items-center mt-16">
+            <h2 className="text-2xl font-bold mb-4 text-[var(--eb-navy)]">
+              Welcome, {currentUser?.name || user?.firstName || "User"}!
+            </h2>
+            <div className="flex flex-col gap-6">
+              <Button
+                onClick={goToTaskManager}
+                className="px-8 py-4 text-lg font-semibold eb-rounded-shadow"
+              >
+                Task Manager
+              </Button>
+
+              <Button
+                onClick={goToProdManager}
+                className="px-8 py-4 text-lg font-semibold eb-rounded-shadow"
+              >
+                Production Manager
+              </Button>
+            </div>
+          </div>
         ) : (
           <EmployeeDashboard currUser={currentUser} />
         )}

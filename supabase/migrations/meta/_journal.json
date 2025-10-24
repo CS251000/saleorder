@@ -127,6 +127,13 @@
       "when": 1759762405542,
       "tag": "0017_mixed_micromax",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1759921832867,
+      "tag": "0018_silky_green_goblin",
+      "breakpoints": true
     }
   ]
 }

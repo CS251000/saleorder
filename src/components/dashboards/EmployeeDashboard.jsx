@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import EmployeeSaleOrder from "../cards/EmployeeSaleOrder";
-import { Switch } from "../ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import toast from "react-hot-toast";
 import { useUser } from "@clerk/nextjs";
@@ -294,7 +293,6 @@ export default function EmployeeDashboard({ currUser }) {
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h2 className="font-bold text-3xl break-words">{currUser?.username}</h2>
-
         <div className="relative w-full sm:w-80">
           <svg
             xmlns="http://www.w3.org/2000/svg"

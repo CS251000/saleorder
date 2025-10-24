@@ -1,15 +1,8 @@
 "use client";
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
-import { Button } from "./ui/button";
-import Image from "next/image";
-import logo from "/public/assets/logo.png";
 
 export default function LandingPage() {
-  const { user, isLoaded } = useUser();
-  const [menuOpen, setMenuOpen] = useState(false);
-
   return (
     <div
       style={{
