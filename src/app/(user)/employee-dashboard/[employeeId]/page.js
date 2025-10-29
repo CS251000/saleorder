@@ -2,7 +2,7 @@
 import React, { useEffect, useState, Suspense } from "react";
 import EmployeeDashboard from "@/components/dashboards/EmployeeDashboard";
 import { useParams } from "next/navigation";
-import Navbar from "@/components/Navbar";
+import Navbar2 from "@/components/Navbar2";
 
 // Separate component that uses useSearchParams
 function EmployeeDashboardContent() {
@@ -26,7 +26,7 @@ function EmployeeDashboardContent() {
 
   return (
     <div>
-      <Navbar currUser={currUser}/>
+      <Navbar2 currUser={currUser}/>
       <EmployeeDashboard currUser={currUser} />
     </div>
   );

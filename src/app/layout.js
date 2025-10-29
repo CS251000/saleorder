@@ -1,8 +1,9 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ClerkProvider, useUser } from "@clerk/nextjs";
+import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "react-hot-toast";
 import Head from "next/head";
+import { UserProvider } from "@/context/UserContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,21 +19,24 @@ export const metadata = {
   title: "EeazyBeezy",
   description: "Make your business easy",
 };
+export const viewport = {
+    initialScale: 1,
+    width: 'device-width'
+}
 
 export default function RootLayout({ children }) {
   return (
     <ClerkProvider>
     <html lang="en">
-      <Head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      </Head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         
         <div>
           <Toaster position="top-right" />
+          <UserProvider>
           {children}
+          </UserProvider>
         </div>
       </body>
       

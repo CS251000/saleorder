@@ -55,9 +55,6 @@ export const saleOrder= pgTable("sales_order",{
   status: saleOrderStatus("status").default("Pending"),
   edited:boolean("is_edited").default(false)
 })
-
-
-
 export const organizations = pgTable("organizations", {
   id: uuid("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),

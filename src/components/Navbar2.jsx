@@ -25,16 +25,12 @@ export default function Navbar2({currUser}) {
 
    // ✅ Navigation functions (send full user object)
   const goToTaskManager = () => {
-    if (!currUser) return;
-    const encoded = encodeURIComponent(JSON.stringify(currUser));
-    router.push(`/task-manager?user=${encoded}`);
+    router.push(`/task-manager`);
     router.refresh();
   };
 
   const goToProdManager = () => {
-    if (!currUser) return;
-    const encoded = encodeURIComponent(JSON.stringify(currUser));
-    router.push(`/prod-manager?user=${encoded}`);
+    router.push(`/prod-manager`);
     router.refresh();
   };
 
@@ -176,7 +172,7 @@ export default function Navbar2({currUser}) {
                 <UserButton.Link
                   label="View Profile"
                   labelIcon={<CircleUser />}
-                  href={`/view-user-profile?id=${userId}`}
+                  href={`/view-user-profile`}
                 />
               </UserButton.MenuItems>
             </UserButton>
@@ -241,7 +237,7 @@ export default function Navbar2({currUser}) {
                     <UserButton.Link
                       label="View Profile"
                       labelIcon={<CircleUser />}
-                      href={`/view-user-profile?id=${userId}`}
+                      href={`/view-user-profile`}
                     />
                   </UserButton.MenuItems>
                 </UserButton>

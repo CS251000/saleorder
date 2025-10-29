@@ -1,31 +1,22 @@
 "use client";
 
-import React, { useMemo, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import React, {Suspense } from "react";
 import Navbar2 from "@/components/Navbar2";
 import ProdManagerDashboard from "@/components/dashboards/ProdManager-Dashboard";
+import { useGlobalUser } from "@/context/UserContext";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 // Inner component that actually uses useSearchParams
 function ProdManagerContent() {
-  const searchParams = useSearchParams();
-  const encodedUser = searchParams.get("user");
+  
+  const {currentUser} = useGlobalUser();
 
-  const currentUser = useMemo(() => {
-    if (!encodedUser) return null;
-    try {
-      return JSON.parse(decodeURIComponent(encodedUser));
-    } catch (err) {
-      console.error("Error decoding user from URL:", err);
-      return null;
-    }
-  }, [encodedUser]);
-
-  if (!currentUser) {
-    return (
-      <div className="flex items-center justify-center h-screen text-gray-600 text-lg">
-        ⚠️ No user found in URL.
-      </div>
-    );
+  if(!currentUser){
+    return <div className="flex items-center justify-center h-screen">
+      <p className="text-gray-500">Loading user data... Try Reloading</p>
+      <Link href="/"><Button>Reload</Button></Link>
+    </div>
   }
 
   return (

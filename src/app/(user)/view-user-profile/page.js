@@ -1,8 +1,5 @@
 "use client";
 import React, { useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import useSWR from "swr";
-import Navbar from "@/components/Navbar";
 import {
   Card,
   CardContent,
@@ -18,45 +15,26 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Copy, Check, Mail, Phone, Building, Globe, User } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
+import { useGlobalUser } from "@/context/UserContext";
+import Navbar2 from "@/components/Navbar2";
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function UserProfileContent() {
-  const searchParams = useSearchParams();
-  const userId = searchParams.get("id");
   const [copied, setCopied] = useState(false);
-  const {user,isLoaded}= useUser();
+  const {currentUser}= useGlobalUser();
+  const {user,isLoaded} = useUser();
 
 
-  const { data, error, isLoading } = useSWR(
-    userId ? `/api/profile?userId=${userId}` : null,
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 24 * 60 * 60000,
-      refreshInterval: 0,
-    }
-  );
-
-  if (isLoading)
+  if (!isLoaded)
     return (
       <div className="max-w-3xl mx-auto mt-10">
         <Skeleton className="h-8 w-48 mb-6" />
         <Skeleton className="h-56 w-full rounded-xl" />
       </div>
     );
+  const userProfile = currentUser;
+  const userId = currentUser?.id || "";
 
-  if (error)
-    return (
-      <div className="text-center text-red-600 mt-20">
-        Failed to load profile: {error.message}
-      </div>
-    );
-
-  if (!data?.user)
-    return <div className="text-center text-gray-500 mt-20">No user found</div>;
-
-  const userProfile = data.user;
 
   const handleCopy = async () => {
     if (!userId) return;
@@ -71,7 +49,7 @@ function UserProfileContent() {
 
   return (
     <>
-      <Navbar />
+      <Navbar2 currUser={currentUser} />
 
       <div className="max-w-4xl mx-auto p-6 space-y-8">
         {/* Header */}

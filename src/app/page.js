@@ -19,6 +19,7 @@ import Navbar from "@/components/Navbar";
 import SignupForm from "@/components/SignupForm";
 import Navbar2 from "@/components/Navbar2";
 import { useRouter } from "next/navigation";
+import { useGlobalUser } from "@/context/UserContext";
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -27,6 +28,7 @@ export default function Home() {
   const clerk = useClerk();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const {currentUser, setCurrentUser} = useGlobalUser();
 
   // ✅ Use SWR for fetching current user info once user is loaded
   const { data, error, mutate } = useSWR(
@@ -34,7 +36,7 @@ export default function Home() {
     fetcher
   );
 
-  const currentUser = data?.currentUser || null;
+  const currUser = data?.currentUser || null;
   const isInDB = data?.exists ?? null;
 
   // ✅ Clear cache on signOut
@@ -45,17 +47,17 @@ export default function Home() {
     return unsubscribe;
   }, [clerk, mutate]);
 
+  useEffect(()=>{
+    if(currUser)setCurrentUser(currUser)
+  },[currUser,setCurrentUser])
+
   // ✅ Navigation functions (send full user object)
   const goToTaskManager = () => {
-    if (!currentUser) return;
-    const encoded = encodeURIComponent(JSON.stringify(currentUser));
-    router.push(`/task-manager?user=${encoded}`);
+    router.push(`/task-manager`);
   };
 
   const goToProdManager = () => {
-    if (!currentUser) return;
-    const encoded = encodeURIComponent(JSON.stringify(currentUser));
-    router.push(`/prod-manager?user=${encoded}`);
+    router.push(`/prod-manager`);
   };
 
   // --------------------- LOADING STATE ---------------------

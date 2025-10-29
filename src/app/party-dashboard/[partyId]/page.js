@@ -4,15 +4,18 @@ import PartyDashboard from "@/components/dashboards/PartyDashboard";
 import { useParams } from "next/navigation";
 import React, { Suspense } from "react";
 import Navbar from "@/components/Navbar";
+import Navbar2 from "@/components/Navbar2";
+import { useGlobalUser } from "@/context/UserContext";
 
 // Separate component that uses useSearchParams
 
 function PartyDashboardContent() {
   const params = useParams();
   const { partyId } = params;
+  const {currentUser} = useGlobalUser();
   return (
     <div className="">
-      <Navbar/>
+      <Navbar2 currUser={currentUser}/>
       <PartyDashboard partyId={partyId} />
     </div>
   );
