@@ -13,12 +13,15 @@ import { Button } from "./ui/button";
 import { CircleUser } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useGlobalUser } from "@/context/UserContext";
 
-export default function Navbar2({currUser}) {
+export default function Navbar2() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, isLoaded } = useUser(); // Clerk hook
   const pathname = usePathname();
   const router= useRouter();
+  const {currentUser}= useGlobalUser();
+  const currUser= currentUser;
 
   // Safely get user ID when available
   const userId = currUser?.id??"";

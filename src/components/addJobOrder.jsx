@@ -170,7 +170,13 @@ export function AddJobOrderForm({ fabricatorId, managerId }) {
       const found = fabricators.find((f) => f.id === Number(fabricatorId));
       if (found) setFabricator(found.name);
     }
-  }, [fabricatorId]);
+    if (designId) {
+      const foundDesign = designs.find((d) => d.id === Number(designId));
+      if (foundDesign) setDesignName(foundDesign.name);
+    }
+  }, [fabricatorId, designId]);
+
+
 
   return (
     <Dialog>

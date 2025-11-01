@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, Suspense } from "react";
+import React, { useState, Suspense, useEffect, use } from "react";
 import {
   Card,
   CardContent,
@@ -23,6 +23,11 @@ function UserProfileContent() {
   const [copied, setCopied] = useState(false);
   const {currentUser}= useGlobalUser();
   const {user,isLoaded} = useUser();
+
+  useEffect(()=>{
+    console.log("curr",currentUser);
+    console.log("user",user);
+  },[user,currentUser]);
 
 
   if (!isLoaded)
@@ -49,7 +54,7 @@ function UserProfileContent() {
 
   return (
     <>
-      <Navbar2 currUser={currentUser} />
+      <Navbar2/>
 
       <div className="max-w-4xl mx-auto p-6 space-y-8">
         {/* Header */}
@@ -69,18 +74,18 @@ function UserProfileContent() {
         <Card className="shadow-lg border border-[#E0E1DD] rounded-2xl">
           <CardHeader className="flex flex-row items-center space-x-6">
             <Avatar className="h-20 w-20 border-2 border-[#415A77] shadow-sm">
-              <AvatarImage src={user.imageUrl || ""} alt={userProfile.firstName} />
+              <AvatarImage src={user.imageUrl || ""} alt={userProfile.first_name} />
               <AvatarFallback className="bg-[#778DA9] text-white text-lg">
-                {userProfile.firstName?.[0]?.toUpperCase() ?? "U"}
+                {userProfile.first_name?.[0]?.toUpperCase() ?? "U"}
               </AvatarFallback>
             </Avatar>
 
             <div>
               <CardTitle className="text-2xl font-semibold text-[#1B263B]">
-                {userProfile.firstName} {userProfile.lastName}
+                {userProfile.first_name} {userProfile.last_name}
               </CardTitle>
               <CardDescription className="text-gray-600">
-                @{userProfile.userName}
+                @{userProfile.username}
               </CardDescription>
 
               <div className="flex items-center space-x-2 mt-3">

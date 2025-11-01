@@ -9,6 +9,13 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useParams } from 'next/navigation';
 import React, { useState } from 'react'
 
+const fabricators = [
+  { id: 1, name: "Fabricator 1", total: 100, dispatched: 80, pending: 20 },
+  { id: 2, name: "Fabricator 2", total: 200, dispatched: 150, pending: 50 },
+  { id: 3, name: "Fabricator 3", total: 300, dispatched: 250, pending: 50 },
+  { id: 4, name: "Fabricator 4", total: 400, dispatched: 350, pending: 50 },
+];
+
 const items = [
   {
     id: 1,
@@ -16,7 +23,7 @@ const items = [
     orderDate: "2023-10-01",
     deliveryDate: "2023-10-05",
     status: "Pending",
-    fabricator: "ABC Textiles",
+    fabricatorId: 1,
     isSampleGiven: true,
     materialDetails: {
       clothName: "Cotton Poplin",
@@ -37,7 +44,7 @@ const items = [
     orderDate: "2023-10-02",
     deliveryDate: "2023-10-06",
     status: "Completed",
-    fabricator: "XYZ Garments",
+    fabricatorId: 2,
     isSampleGiven: false,
     materialDetails: {
       clothName: "Linen Blend",
@@ -58,7 +65,7 @@ const items = [
     orderDate: "2023-10-03",
     deliveryDate: "2023-10-07",
     status: "Bestseller",
-    fabricator: "Sunrise Fabrics",
+    fabricatorId: 3,
     isSampleGiven: true,
     materialDetails: {
       clothName: "Egyptian Cotton",
@@ -79,7 +86,7 @@ const items = [
     orderDate: "2023-10-04",
     deliveryDate: "2023-10-08",
     status: "Reordered",
-    fabricator: "Elegant Stitchers",
+    fabricatorId: 1,
     isSampleGiven: false,
     materialDetails: {
       clothName: "Oxford Cotton",
@@ -105,11 +112,11 @@ export default function FabricatorDashboardPage() {
   const [showType,setShowType]=useState("all");
   return (
     <div>
-      <Navbar2/>
+      {/* <Navbar2/> */}
       <div className="p-6 space-y-6">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="font-bold text-3xl break-words">{"Fabricator Name"}</h2>
+        <h2 className="font-bold text-3xl break-words">{fabricators.find((f)=>f.id==fabricatorId).name}</h2>
         <div className="relative w-full sm:w-80">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -174,12 +181,6 @@ export default function FabricatorDashboardPage() {
                   Completed
                 </TabsTrigger>
                 <TabsTrigger
-                  value="bestseller"
-                  onClick={()=>setShowType("bestseller")}
-                >
-                  Bestseller
-                </TabsTrigger>
-                <TabsTrigger
                   value="reordered"
                   onClick={()=>setShowType("reordered")}
                 >
@@ -201,9 +202,6 @@ export default function FabricatorDashboardPage() {
           }
           if(showType==="completed"){
             return item.status==="Completed";
-          }
-          if(showType==="bestseller"){
-            return item.status==="Bestseller";
           }
           if(showType==="reordered"){
             return item.status==="Reordered";

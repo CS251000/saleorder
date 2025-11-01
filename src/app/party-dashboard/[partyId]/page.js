@@ -15,7 +15,7 @@ function PartyDashboardContent() {
   const {currentUser} = useGlobalUser();
   return (
     <div className="">
-      <Navbar2 currUser={currentUser}/>
+      <Navbar2 />
       <PartyDashboard partyId={partyId} />
     </div>
   );

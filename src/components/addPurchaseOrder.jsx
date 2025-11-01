@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -74,7 +74,7 @@ const fabricators = [
   { id: 4, name: "Fabricator 4", total: 400, dispatched: 350, pending: 50 },
 ];
 
-export function AddPurchaseOrderForm() {
+export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
   // First part states
   const [POnumber, setPOnumber] = useState("");
   const [date, setDate] = useState(null);
@@ -92,6 +92,18 @@ export function AddPurchaseOrderForm() {
   const [purchaseRate, setPurchaseRate] = useState("");
   const [quantity, setQuantity] = useState("");
   const [dueDate, setDueDate] = useState(null);
+
+
+  useEffect(() => {
+      if (agentId) {
+        const found = agents.find((a) => a.id === Number(agentId));
+        if (found) setAgent(found.name);
+      }
+      if(clothId){
+        const foundCloth= cloths.find((c)=>c.id===Number(clothId));
+        if(foundCloth)setClothName(foundCloth.name)
+      }
+    }, [agentId,clothId]);
 
   return (
     <Dialog>

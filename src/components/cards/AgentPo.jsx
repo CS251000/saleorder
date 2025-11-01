@@ -1,36 +1,35 @@
-"use client";
-import React, { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
-import { Button } from "../ui/button";
-import JobSlipInfoDialog from "../jobSlipInfoDialog";
-import { Edit3, Info, Trash2 } from "lucide-react";
+"use client"
+import React from 'react'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
+import { Button } from '../ui/button';
+import { Edit3, Info, Trash2 } from 'lucide-react';
 
-export default function FabricatorJobSlipCard({ jobSlip }) {
-  const [open, setOpen] = useState(false);
-
+export default function AgentPO({purchaseOrder}) {
   return (
     <div>
-      <Card className={` ${jobSlip.status==='Bestseller'?"border-2 border-amber-200":""} hover:shadow-lg transition-all`}>
+      <Card className="hover:shadow-lg transition-all">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">
-            Job #{jobSlip.id}
+          <div className='flex justify-between'>
+            <CardTitle className="text-lg font-semibold">
+            P0 #{purchaseOrder.POnumber}
           </CardTitle>
-          <CardDescription>Design: {jobSlip.designNumber}</CardDescription>
-          <div className="text-sm font-medium text-blue-600">
-            Status: {jobSlip.status}
+            <div className="text-sm font-medium text-blue-600">
+            {purchaseOrder.status}
           </div>
+          </div>
+          
+          <CardDescription>
+            <div className='flex flex-col space-y-2'>
+            <span>Cloth: {purchaseOrder.clothName}</span>
+            <span>Mill: {purchaseOrder.mill}</span>
+            </div>
+            </CardDescription>
+          
         </CardHeader>
 
         <CardContent className="text-sm space-y-1">
-          <p>📅 Order Date: {jobSlip.OrderDate}</p>
-          <p>🚚 Delivery Date: {jobSlip.deliveryDate}</p>
+          <p>📅 Order Date: {purchaseOrder.OrderDate}</p>
+          <p>🚚 Due Date: {purchaseOrder.dueDate}</p>
         </CardContent>
 
         <CardFooter className="flex justify-center items-center gap-3">
@@ -61,7 +60,7 @@ export default function FabricatorJobSlipCard({ jobSlip }) {
       </Card>
 
       {/* Info Dialog */}
-      <JobSlipInfoDialog open={open} setOpen={setOpen} jobSlip={jobSlip} />
+      {/* <JobSlipInfoDialog open={open} setOpen={setOpen} jobSlip={jobSlip} /> */}
     </div>
   );
 }

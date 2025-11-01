@@ -1,7 +1,6 @@
 "use client";
-import { AddJobOrderForm } from '@/components/addJobOrder';
-import ItemJobSlipCard from '@/components/cards/ItemJobSlip';
-import { FilterJobOrder } from '@/components/filterJobOrder';
+import { AddPurchaseOrderForm } from '@/components/addPurchaseOrder';
+import AgentPO from '@/components/cards/AgentPo';
 import Navbar2 from '@/components/Navbar2';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,98 +8,58 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useParams } from 'next/navigation';
 import React, { useState } from 'react'
 
-const items = [
+const agents = [
+  { id: 1, name: "Agent A" },
+  { id: 2, name: "Agent B" },
+  { id: 3, name: "Agent C" },
+];
+
+const purchaseOrders = [
   {
+    POnumber: "PO-001",
     id: 1,
-    designNumber: "D001",
-    orderDate: "2023-10-01",
-    deliveryDate: "2023-10-05",
-    status: "Pending",
-    fabricator: "ABC Textiles",
-    isSampleGiven: true,
-    materialDetails: {
-      clothName: "Cotton Poplin",
-      totalMeter: 45,
-      price: 3200,
-    },
-    shirtDetails: {
-      designName: "Classic White Shirt",
-      average: 1.2, // meters per shirt
-      fabrication: 150,
-      expense: 80,
-      costing: 350,
-    },
+    orderDate: "2024-01-15",
+    agentId: 1,
+    mill: "Mill X",
+    clothName: "Cloth A",
+    purchaseRate: "50",
+    designName: "Design X",
+    fabricator: "Fabricator 1",
+    quantity: "100",
+    dueDate: "2024-02-15",
+    status:"Pending"
   },
   {
+    POnumber: "PO-002",
     id: 2,
-    designNumber: "D002",
-    orderDate: "2023-10-02",
-    deliveryDate: "2023-10-06",
-    status: "Completed",
-    fabricator: "XYZ Garments",
-    isSampleGiven: false,
-    materialDetails: {
-      clothName: "Linen Blend",
-      totalMeter: 60,
-      price: 4800,
-    },
-    shirtDetails: {
-      designName: "Casual Linen Shirt",
-      average: 1.4,
-      fabrication: 200,
-      expense: 90,
-      costing: 400,
-    },
+    orderDate: "2024-01-16",
+    agentId: 2,
+    mill: "Mill Y",
+    clothName: "Cloth B",
+    purchaseRate: "60",
+    quantity: "200",
+    dueDate: "2024-02-16",
+    status:"Completed"
   },
   {
+    POnumber: "PO-003",
     id: 3,
-    designNumber: "D003",
-    orderDate: "2023-10-03",
-    deliveryDate: "2023-10-07",
-    status: "Bestseller",
-    fabricator: "Sunrise Fabrics",
-    isSampleGiven: true,
-    materialDetails: {
-      clothName: "Egyptian Cotton",
-      totalMeter: 100,
-      price: 9500,
-    },
-    shirtDetails: {
-      designName: "Premium Formal Shirt",
-      average: 1.1,
-      fabrication: 220,
-      expense: 120,
-      costing: 480,
-    },
-  },
-  {
-    id: 4,
-    designNumber: "D004",
-    orderDate: "2023-10-04",
-    deliveryDate: "2023-10-08",
-    status: "Reordered",
-    fabricator: "Elegant Stitchers",
-    isSampleGiven: false,
-    materialDetails: {
-      clothName: "Oxford Cotton",
-      totalMeter: 80,
-      price: 6200,
-    },
-    shirtDetails: {
-      designName: "Oxford Blue Shirt",
-      average: 1.3,
-      fabrication: 180,
-      expense: 100,
-      costing: 420,
-    },
+    orderDate: "2024-01-17",
+    agentId: 3,
+    mill: "Mill Z",
+    clothName: "Cloth A",
+    designName: "Design Y",
+    fabricator: "Fabricator 2",
+    purchaseRate: "70",
+    quantity: "300",
+    dueDate: "2024-02-17",
+    status:"Completed"
   },
 ];
 
-
-export default function ItemDashboardPage() {
+export default function ClothDashboardPage() {
   const params= useParams();
-  const {itemId}=params;
-  const {managerId}=params;
+  const {agentid}=params;
   const [searchTerm, setSearchTerm] =useState("");
   const [showType,setShowType]=useState("all");
   return (
@@ -109,7 +68,7 @@ export default function ItemDashboardPage() {
       <div className="p-6 space-y-6">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="font-bold text-3xl break-words">{items.find((i)=>i.id==itemId).shirtDetails.designName}</h2>
+        <h2 className="font-bold text-3xl break-words">{agents.find((a)=>a.id==agentid).name}</h2>
         <div className="relative w-full sm:w-80">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -127,7 +86,7 @@ export default function ItemDashboardPage() {
           </svg>
           <Input
             type="text"
-            placeholder="Search job slips..."
+            placeholder="Search POs..."
             className="pl-12 pr-4 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -135,8 +94,7 @@ export default function ItemDashboardPage() {
         </div>
 
         <div className="flex flex-row gap-3 flex-wrap justify-center sm:justify-end">
-          <AddJobOrderForm designId={itemId} managerId={managerId}/>
-          <FilterJobOrder/>
+          <AddPurchaseOrderForm agentId={agentid}/>
         </div>
 
         
@@ -145,7 +103,7 @@ export default function ItemDashboardPage() {
         <CardHeader className="p-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <CardTitle className="text-lg font-semibold">
-              Job Slips
+              Purchase Orders
             </CardTitle>
           </div>
         </CardHeader>
@@ -180,19 +138,18 @@ export default function ItemDashboardPage() {
         </CardContent>
       </Card>
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4  gap-4'>
-        {items.filter((item)=>{
+        {purchaseOrders.filter((po)=>{
           if(showType==="all"){
-            return item;
+            return po;
           }
           if(showType==="pending"){
-            return item.status==="Pending";
+            return po.status==="Pending";
           }
           if(showType==="completed"){
-            return item.status==="Completed";
+            return po.status==="Completed";
           }
-
-        }).map((item)=>(
-          <ItemJobSlipCard key={item.id} jobSlip={item} />
+        }).map((po)=>(
+          <AgentPO key={po.id} purchaseOrder={po} />
         ))}
       </div>
 

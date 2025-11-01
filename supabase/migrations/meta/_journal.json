@@ -134,6 +134,13 @@
       "when": 1759921832867,
       "tag": "0018_silky_green_goblin",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1761978576007,
+      "tag": "0019_panoramic_jubilee",
+      "breakpoints": true
     }
   ]
 }

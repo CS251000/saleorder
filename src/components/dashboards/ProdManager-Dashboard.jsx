@@ -13,6 +13,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { BookPlus, ClipboardPlus, PackageSearch } from "lucide-react";
 import ItemWiseDetailsTable from "./ItemWiseTable";
 import FabricatorWiseDetailsTable from "./FabricatorWiseTable";
+import AgentWiseDetailsTable from "./AgentWiseTable";
+import ClothWiseDetailsTable from "./ClothWiseTable";
 
 export default function ProdManagerDashboard({managerId}) {
   return (
@@ -42,7 +44,8 @@ export default function ProdManagerDashboard({managerId}) {
         </CardHeader>
         <CardContent>
           <div className="flex space-x-5"></div>
-          <Accordion type="multiple" className="w-full space-y-4 " >
+          <Accordion type="multiple" className="w-full space-y-6"
+          defaultValue={["itemwise"]}>
             <AccordionItem
               value="itemwise"
               className="border border-gray-200 rounded-xl shadow-sm bg-white"
@@ -80,7 +83,7 @@ export default function ProdManagerDashboard({managerId}) {
         </CardHeader>
         <CardContent>
           <div className="flex space-x-5"></div>
-          <Accordion type="multiple" className="w-full space-y-4 " >
+          <Accordion type="multiple" className="w-full space-y-4" defaultValue={["clothwise"]}>
             <AccordionItem
               value="clothwise"
               className="border border-gray-200 rounded-xl shadow-sm bg-white"
@@ -89,7 +92,7 @@ export default function ProdManagerDashboard({managerId}) {
                 Cloth-Wise Details
               </AccordionTrigger>
               <AccordionContent className="p-4 text-gray-600 bg-gray-50 rounded-b-xl">
-                <ItemWiseDetailsTable managerId={managerId}/>
+                <ClothWiseDetailsTable managerId={managerId}/>
               </AccordionContent>
             </AccordionItem>
 
@@ -101,7 +104,7 @@ export default function ProdManagerDashboard({managerId}) {
                 Agent-Wise Details
               </AccordionTrigger>
               <AccordionContent className="p-4 text-gray-600 bg-gray-50 rounded-b-xl">
-                <FabricatorWiseDetailsTable managerId={managerId}/>
+                <AgentWiseDetailsTable managerId={managerId}/>
               </AccordionContent>
             </AccordionItem>
           </Accordion>

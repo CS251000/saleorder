@@ -26,7 +26,7 @@ function EmployeeDashboardContent() {
 
   return (
     <div>
-      <Navbar2 currUser={currUser}/>
+      <Navbar2 />
       <EmployeeDashboard currUser={currUser} />
     </div>
   );
