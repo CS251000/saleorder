@@ -141,6 +141,41 @@
       "when": 1761978576007,
       "tag": "0019_panoramic_jubilee",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1762028591468,
+      "tag": "0020_amused_ikaris",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1762028728180,
+      "tag": "0021_flawless_iron_fist",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1762158603409,
+      "tag": "0022_giant_cargill",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1762159437894,
+      "tag": "0023_salty_marvex",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1762159746776,
+      "tag": "0024_lazy_microchip",
+      "breakpoints": true
     }
   ]
 }

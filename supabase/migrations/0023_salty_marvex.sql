@@ -1,0 +1,1 @@
+ALTER TABLE "purchase_order" ADD COLUMN "due_date" date DEFAULT now();

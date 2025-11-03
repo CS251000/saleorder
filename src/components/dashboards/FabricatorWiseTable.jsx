@@ -10,7 +10,7 @@ const fabricators = [
   { id: 4, name: "Fabricator 4", total: 400, dispatched: 350, pending: 50 },
 ];
 
-export default function FabricatorWiseDetailsTable({ managerId }) {
+export default function FabricatorWiseDetailsTable() {
   const [searchTerm, setSearchTerm] = useState("");
 
   // Filtered fabricators based on search term
@@ -84,7 +84,7 @@ export default function FabricatorWiseDetailsTable({ managerId }) {
                 >
                   <td className="px-4 py-4 whitespace-nowrap">
                     <Link
-                      href={`/fabricator-dashboard/${fab.id}?managerId=${managerId}`}
+                      href={`/fabricator-dashboard/${fab.id}`}
                     >
                       <div className="text-lg font-medium text-gray-900 hover:text-indigo-600">
                         {fab.name}

@@ -90,7 +90,7 @@ function ProdManagerContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* <Navbar2 /> */}
-      <ProdManagerDashboard managerId={currentUser.id} />
+      <ProdManagerDashboard/>
     </div>
   );
 }

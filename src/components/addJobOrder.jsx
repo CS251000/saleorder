@@ -25,7 +25,6 @@ import {
   CheckIcon,
   ChevronsUpDownIcon,
   CirclePlus,
-  CircleQuestionMark,
   Shirt,
   StarIcon,
 } from "lucide-react";
@@ -44,42 +43,10 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Checkbox } from "./ui/checkbox";
 import { Separator } from "./ui/separator";
 import { ScrollArea } from "./ui/scroll-area";
 import { Toggle } from "./ui/toggle";
-
-const fabricators = [
-  { id: 1, name: "Fabricator 1", total: 100, dispatched: 80, pending: 20 },
-  { id: 2, name: "Fabricator 2", total: 200, dispatched: 150, pending: 50 },
-  { id: 3, name: "Fabricator 3", total: 300, dispatched: 250, pending: 50 },
-  { id: 4, name: "Fabricator 4", total: 400, dispatched: 350, pending: 50 },
-];
-const expenses = [
-  { value: "washing", label: "Washing" },
-  { value: "kadhai", label: "Kadhai" },
-  { value: "pasting", label: "Pasting" },
-  { value: "button", label: "Button" },
-  { value: "design", label: "Design" },
-  { value: "print", label: "Print" },
-  { value: "id", label: "ID" },
-  { value: "double-pocket", label: "Double Pocket" },
-  { value: "others", label: "Others" },
-];
-
-const cloths = [
-  { id: 1, name: "Cloth A" },
-  { id: 2, name: "Cloth B" },
-  { id: 3, name: "Cloth C" },
-  { id: 4, name: "Cloth D" },
-];
-
-const designs = [
-  { id: 1, name: "Design X" },
-  { id: 2, name: "Design Y" },
-  { id: 3, name: "Design Z" },
-  { id: 4, name: "Design W" },
-];
+import { useProdManager } from "@/context/ProdManagerContext";
 
 const purchaseOrders = [
   {
@@ -121,11 +88,10 @@ const purchaseOrders = [
   },
 ];
 
-export function AddJobOrderForm({ fabricatorId, managerId }) {
+export function AddJobOrderForm({ fabricatorId, designId }) {
   const [date, setDate] = useState(null);
   const [dueDate, setDueDate] = useState(null);
   const [fabricator, setFabricator] = useState("");
-  const [manager] = useState(managerId || "");
   const [fabOpen, setFabOpen] = useState(false);
   const [clothName, setClothName] = useState("");
   const [clothOpen, setClothOpen] = useState(false);
@@ -135,11 +101,15 @@ export function AddJobOrderForm({ fabricatorId, managerId }) {
   const [expenseComboOpen, setExpenseComboOpen] = useState(false);
   const [selectedExpenses, setSelectedExpenses] = useState([]);
   const [expenseToAdd, setExpenseToAdd] = useState("");
-
   const [poOpen, setPoOpen] = useState(false);
   const [selectedPO, setSelectedPO] = useState(null);
   const [totalMeter, setTotalMeter] = useState("");
   const [totalPrice, setTotalPrice] = useState("");
+
+  const [fabSearchTerm,setFabSearchTerm]= useState("");
+
+  const { fabricators, addFabricator, expenses, designs, cloths,loading } =
+    useProdManager();
 
   const handleAddExpense = (e) => {
     const val = e.target.value;
@@ -175,8 +145,6 @@ export function AddJobOrderForm({ fabricatorId, managerId }) {
       if (foundDesign) setDesignName(foundDesign.name);
     }
   }, [fabricatorId, designId]);
-
-
 
   return (
     <Dialog>
@@ -263,9 +231,35 @@ export function AddJobOrderForm({ fabricatorId, managerId }) {
 
                     <PopoverContent className="w-full p-0">
                       <Command>
-                        <CommandInput placeholder="Search fabricator..." />
+                        <CommandInput placeholder="Search fabricator..." onValueChange={(t)=>setFabSearchTerm(t)}/>
                         <CommandList>
-                          <CommandEmpty>No fabricator found.</CommandEmpty>
+                          <CommandEmpty>
+                            <div className="flex flex-col items-center gap-2 py-3">
+                              <p className="text-sm text-muted-foreground">
+                                No fabricator found.
+                              </p>
+                              {loading?<Button variant={"outline"}
+                              size="sm" disabled>
+                                Adding
+                                </Button>:<Button
+                                variant="outline"
+                                size="sm"
+                                onClick={async () => {
+                                  if (!fabSearchTerm) return;
+                                  if(!fabSearchTerm.trim())return;
+                                  await addFabricator(fabSearchTerm);
+                                  setFabricator(fabSearchTerm);
+                                  setFabOpen(false);
+                                }}
+                              >
+                                <CirclePlus className="w-4 h-4 mr-1" />
+                                Add “
+                                {fabSearchTerm}
+                                ”
+                              </Button>}
+                              
+                            </div>
+                          </CommandEmpty>
                           <CommandGroup>
                             {fabricators.map((f) => (
                               <CommandItem
@@ -438,7 +432,8 @@ export function AddJobOrderForm({ fabricatorId, managerId }) {
                                     {selectedPO.POnumber}
                                   </span>
                                   <span className="text-xs text-muted-foreground">
-                                    {selectedPO.designName} • {selectedPO.fabricator}
+                                    {selectedPO.designName} •{" "}
+                                    {selectedPO.fabricator}
                                   </span>
                                 </div>
                               ) : (

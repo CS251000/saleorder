@@ -10,7 +10,7 @@ const agents = [
   { id: 4, name: "Agent 4", total: 400, dispatched: 350, pending: 50 },
 ];
 
-export default function AgentWiseDetailsTable({ managerId }) {
+export default function AgentWiseDetailsTable() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredAgents = agents.filter((agent) =>
@@ -83,7 +83,7 @@ export default function AgentWiseDetailsTable({ managerId }) {
                 >
                   <td className="px-4 py-4 whitespace-nowrap">
                     <Link
-                      href={`/agent-dashboard/${agent.id}?managerId=${managerId}`}
+                      href={`/agent-dashboard/${agent.id}`}
                     >
                       <div className="text-lg font-medium text-gray-900">
                         {agent.name}

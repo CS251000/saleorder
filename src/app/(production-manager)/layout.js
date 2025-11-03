@@ -5,8 +5,10 @@ import { ProdManagerProvider } from "@/context/ProdManagerContext";
 export default function ProductionManagerLayout({ children }) {
   return (
     <>
+    <ProdManagerProvider>
       <Navbar2/>
       {children}
+      </ProdManagerProvider>
       </>
   );
 }

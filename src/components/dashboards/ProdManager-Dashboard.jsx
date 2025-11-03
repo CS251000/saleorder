@@ -16,7 +16,7 @@ import FabricatorWiseDetailsTable from "./FabricatorWiseTable";
 import AgentWiseDetailsTable from "./AgentWiseTable";
 import ClothWiseDetailsTable from "./ClothWiseTable";
 
-export default function ProdManagerDashboard({managerId}) {
+export default function ProdManagerDashboard() {
   return (
     <div className="flex flex-col gap-8 px-4 sm:px-6 lg:px-10 py-6 bg-gray-50 min-h-screen">
       {/* ✅ Header Section */}
@@ -24,7 +24,7 @@ export default function ProdManagerDashboard({managerId}) {
         <div className="flex flex-col md:flex-row sm:items-center sm:justify-between">
           <h1 className="text-lg md:text-2xl text-white font-bold mb-2">Production Manager Dashboard</h1>
           <div className="flex space-x-2">
-            <AddJobOrderForm managerId={managerId} />
+            <AddJobOrderForm />
             <AddPurchaseOrderForm />
           </div>
         </div>
@@ -54,7 +54,7 @@ export default function ProdManagerDashboard({managerId}) {
                 Item-Wise Details
               </AccordionTrigger>
               <AccordionContent className="p-4 text-gray-600 bg-gray-50 rounded-b-xl">
-                <ItemWiseDetailsTable managerId={managerId}/>
+                <ItemWiseDetailsTable/>
               </AccordionContent>
             </AccordionItem>
 
@@ -66,7 +66,7 @@ export default function ProdManagerDashboard({managerId}) {
                 Fabricator-Wise Details
               </AccordionTrigger>
               <AccordionContent className="p-4 text-gray-600 bg-gray-50 rounded-b-xl">
-                <FabricatorWiseDetailsTable managerId={managerId}/>
+                <FabricatorWiseDetailsTable/>
               </AccordionContent>
             </AccordionItem>
           </Accordion>
@@ -92,7 +92,7 @@ export default function ProdManagerDashboard({managerId}) {
                 Cloth-Wise Details
               </AccordionTrigger>
               <AccordionContent className="p-4 text-gray-600 bg-gray-50 rounded-b-xl">
-                <ClothWiseDetailsTable managerId={managerId}/>
+                <ClothWiseDetailsTable/>
               </AccordionContent>
             </AccordionItem>
 
@@ -104,7 +104,7 @@ export default function ProdManagerDashboard({managerId}) {
                 Agent-Wise Details
               </AccordionTrigger>
               <AccordionContent className="p-4 text-gray-600 bg-gray-50 rounded-b-xl">
-                <AgentWiseDetailsTable managerId={managerId}/>
+                <AgentWiseDetailsTable/>
               </AccordionContent>
             </AccordionItem>
           </Accordion>

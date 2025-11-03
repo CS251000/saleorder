@@ -11,7 +11,7 @@ const items = [
   { id: 4, name: "Item 4", total: 400, dispatched: 350, pending: 50 },
 ];
 
-export default function ItemWiseDetailsTable({ managerId }) {
+export default function ItemWiseDetailsTable() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredItems = items.filter((item) =>
@@ -84,7 +84,7 @@ export default function ItemWiseDetailsTable({ managerId }) {
                 >
                   <td className="px-4 py-4 whitespace-nowrap">
                     <Link
-                      href={`/item-dashboard/${item.id}?managerId=${managerId}`}
+                      href={`/item-dashboard/${item.id}`}
                     >
                       <div className="text-lg font-medium text-gray-900">
                         {item.name}

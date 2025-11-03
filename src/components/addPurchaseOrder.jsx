@@ -42,68 +42,154 @@ import {
 } from "@/components/ui/accordion";
 import { format } from "date-fns";
 import { ScrollArea } from "./ui/scroll-area";
+import { useProdManager } from "@/context/ProdManagerContext";
+import { useGlobalUser } from "@/context/UserContext";
+import toast from "react-hot-toast";
 
-// Dummy Data
-const agents = [
-  { id: 1, name: "Agent A" },
-  { id: 2, name: "Agent B" },
-  { id: 3, name: "Agent C" },
-];
-const mills = [
-  { id: 1, name: "Mill X" },
-  { id: 2, name: "Mill Y" },
-  { id: 3, name: "Mill Z" },
-];
-const cloths = [
-  { id: 1, name: "Cloth A" },
-  { id: 2, name: "Cloth B" },
-  { id: 3, name: "Cloth C" },
-  { id: 4, name: "Cloth D" },
-];
-
-const designs = [
-  { id: 1, name: "Design X" },
-  { id: 2, name: "Design Y" },
-  { id: 3, name: "Design Z" },
-  { id: 4, name: "Design W" },
-];
-const fabricators = [
-  { id: 1, name: "Fabricator 1", total: 100, dispatched: 80, pending: 20 },
-  { id: 2, name: "Fabricator 2", total: 200, dispatched: 150, pending: 50 },
-  { id: 3, name: "Fabricator 3", total: 300, dispatched: 250, pending: 50 },
-  { id: 4, name: "Fabricator 4", total: 400, dispatched: 350, pending: 50 },
-];
-
-export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
-  // First part states
-  const [POnumber, setPOnumber] = useState("");
-  const [date, setDate] = useState(null);
+export function AddPurchaseOrderForm({ clothId, agentId }) {
   const [agentOpen, setAgentOpen] = useState(false);
-  const [agent, setAgent] = useState("");
   const [millOpen, setMillOpen] = useState(false);
-  const [mill, setMill] = useState("");
-  const [clothName, setClothName] = useState("");
   const [clothOpen, setClothOpen] = useState(false);
-  const [designName, setDesignName] = useState("");
   const [designOpen, setDesignOpen] = useState(false);
-  const [fabricator, setFabricator] = useState("");
   const [fabOpen, setFabOpen] = useState(false);
-  // Second part states
-  const [purchaseRate, setPurchaseRate] = useState("");
-  const [quantity, setQuantity] = useState("");
-  const [dueDate, setDueDate] = useState(null);
 
+  const [saving,setSaving]= useState(false);
+
+  const {currentUser}= useGlobalUser();
+
+  const {
+    // Fabricators
+    fabricators,
+    loadingFabricators,
+    addFabricator,
+    // Cloths
+    cloths,
+    loadingCloths,
+    addCloth,
+    // Designs
+    designs,
+    loadingDesigns,
+    addDesign,
+    // Mills
+    mills,
+    loadingMills,
+    addMill,
+    // Cloth Buy Agents
+    clothBuyAgents,
+    loadingAgents,
+    addClothBuyAgent,
+  } = useProdManager();
+
+  const [form, setForm] = useState({
+    POnumber: "",
+    date: new Date(),
+    agentId: null,
+    agentName: "",
+    millId: null,
+    millName: "",
+    clothId: null,
+    clothName: "",
+    designId: null,
+    designName: "",
+    fabricatorId: null,
+    fabricatorName: "",
+    purchaseRate: "",
+    quantity: "",
+    dueDate: null,
+    managerId:currentUser.id
+  });
 
   useEffect(() => {
-      if (agentId) {
-        const found = agents.find((a) => a.id === Number(agentId));
-        if (found) setAgent(found.name);
+    if (agentId) {
+      const found = clothBuyAgents.find((a) => a.id === Number(agentId));
+      if (found)
+        setForm((prev) => ({
+          ...prev,
+          agentId: found.id,
+          agentName: found.name,
+        }));
+    }
+    if (clothId) {
+      const foundCloth = cloths.find((c) => c.id === Number(clothId));
+      if (foundCloth)
+        setForm((prev) => ({
+          ...prev,
+          clothId: foundCloth.id,
+          clothName: foundCloth.name,
+        }));
+    }
+  }, [agentId, clothId, clothBuyAgents, cloths]);
+
+const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      let {
+        agentId,
+        agentName,
+        millId,
+        millName,
+        clothId,
+        clothName,
+        designId,
+        designName,
+        fabricatorId,
+        fabricatorName,
+      } = form;
+
+      // Add new entities if needed and get their IDs
+      if (!agentId && agentName) {
+        const newAgent = await addClothBuyAgent(agentName);
+        agentId = newAgent?.id || agentName;
       }
-      if(clothId){
-        const foundCloth= cloths.find((c)=>c.id===Number(clothId));
-        if(foundCloth)setClothName(foundCloth.name)
+      if (!millId && millName) {
+        const newMill = await addMill(millName);
+        millId = newMill?.id || millName;
       }
-    }, [agentId,clothId]);
+      if (!clothId && clothName) {
+        const newCloth = await addCloth(clothName);
+        clothId = newCloth?.id || clothName;
+      }
+      if (!designId && designName) {
+        const newDesign = await addDesign(designName);
+        designId = newDesign?.id || designName;
+      }
+      if (!fabricatorId && fabricatorName) {
+        const newFab = await addFabricator(fabricatorName);
+        fabricatorId = newFab?.id || fabricatorName;
+      }
+
+      // Construct final object
+      const finalOrder = {
+        ...form,
+        agentId,
+        millId,
+        clothId,
+        designId,
+        fabricatorId,
+      };
+      const res= await fetch("/api/purchaseOrder",{
+        method:"POST",
+        headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(finalOrder),
+      });
+      if(!res.ok){
+        throw new Error(`Server error: ${res.status}`);
+      }
+
+    const data = await res.json();
+    toast.success("Purchase order created successfully");
+    setForm({});
+
+    } catch (error) {
+      console.error("❌ Error submitting form:", error);
+      toast.error("Error creating purchase order");
+    }finally{
+      setSaving(false);
+    }
+  };
 
   return (
     <Dialog>
@@ -116,7 +202,7 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
 
       <DialogContent className="sm:max-w-[600px] w-[95%] rounded-xl">
         <ScrollArea className="h-[80vh] pr-3">
-          <form className="space-y-4">
+          <form className="space-y-4" onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle className="text-lg font-semibold">
                 Add Purchase Order
@@ -134,9 +220,9 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                 id="POno."
                 type="text"
                 placeholder="Enter PO no."
-                value={POnumber}
-                onChange={(e) => setPOnumber(e.target.value)}
-                className={'w-32'}
+                value={form.POnumber}
+                onChange={(e) => setForm({ ...form, POnumber: e.target.value })}
+                className="w-32"
               />
             </div>
 
@@ -148,8 +234,9 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
               defaultValue={["item-1", "item-2"]}
             >
               {/* Section 1: Order Details */}
-              <AccordionItem value="item-1"
-              className="border border-gray-200 rounded-xl shadow-sm bg-white my-2"
+              <AccordionItem
+                value="item-1"
+                className="border border-gray-200 rounded-xl shadow-sm bg-white my-2"
               >
                 <AccordionTrigger className="text-md font-semibold px-4 py-2 text-gray-800 cursor-pointer hover:text-indigo-700">
                   Order Details
@@ -164,12 +251,12 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                           <Button
                             variant="outline"
                             className={`w-full justify-start text-left font-normal ${
-                              !date ? "text-muted-foreground" : ""
+                              !form.date ? "text-muted-foreground" : ""
                             }`}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {date ? (
-                              format(date, "PPP")
+                            {form.date ? (
+                              format(form.date, "PPP")
                             ) : (
                               <span>Pick a date</span>
                             )}
@@ -178,8 +265,10 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            selected={date}
-                            onSelect={setDate}
+                            selected={form.date}
+                            onSelect={(val) =>
+                              setForm({ ...form, date: val ?? new Date() })
+                            }
                             initialFocus
                           />
                         </PopoverContent>
@@ -197,8 +286,8 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                             aria-expanded={agentOpen}
                             className="w-full justify-between"
                           >
-                            {agent ? (
-                              agent
+                            {form.agentName ? (
+                              form.agentName
                             ) : (
                               <span className="text-muted-foreground">
                                 Select...
@@ -209,22 +298,49 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                         </PopoverTrigger>
                         <PopoverContent className="w-full p-0">
                           <Command>
-                            <CommandInput placeholder="Search agent..." />
+                            <CommandInput placeholder="Search agent..." onValueChange={(v)=>setForm({
+                              ...form,
+                              agentName:v
+                            })} />
                             <CommandList>
-                              <CommandEmpty>No agent found.</CommandEmpty>
+                              <CommandEmpty>
+                                <div className="flex flex-col items-center gap-2 py-3">
+                                  <p className="text-sm text-muted-foreground">
+                                    No agent found.
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                      if (!form.agentName) return;
+                                      
+                                      setAgentOpen(false);
+                                    }}
+                                  >
+                                    <CirclePlus className="w-4 h-4 mr-1" />
+                                    Add “
+                                    {form.agentName}
+                                    ”
+                                  </Button>
+                                </div>
+                              </CommandEmpty>
                               <CommandGroup>
-                                {agents.map((a) => (
+                                {clothBuyAgents.map((a) => (
                                   <CommandItem
                                     key={a.id}
                                     value={a.name}
-                                    onSelect={(v) => {
-                                      setAgent(v === agent ? "" : v);
+                                    onSelect={() => {
+                                      setForm({
+                                        ...form,
+                                        agentId: a.id,
+                                        agentName: a.name,
+                                      });
                                       setAgentOpen(false);
                                     }}
                                   >
                                     <CheckIcon
                                       className={`mr-2 h-4 w-4 ${
-                                        agent === a.name
+                                        form.agentName === a.name
                                           ? "opacity-100"
                                           : "opacity-0"
                                       }`}
@@ -250,8 +366,8 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                             aria-expanded={millOpen}
                             className="w-full justify-between"
                           >
-                            {mill ? (
-                              mill
+                            {form.millName ? (
+                              form.millName
                             ) : (
                               <span className="text-muted-foreground">
                                 Select...
@@ -262,22 +378,51 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                         </PopoverTrigger>
                         <PopoverContent className="w-full p-0">
                           <Command>
-                            <CommandInput placeholder="Search mill..." />
+                            <CommandInput placeholder="Search mill..." 
+                            onValueChange={(v)=>setForm({
+                              ...form,
+                              millName:v
+                            })}
+                             />
                             <CommandList>
-                              <CommandEmpty>No mill found.</CommandEmpty>
+                              <CommandEmpty>
+                                <div className="flex flex-col items-center gap-2 py-3">
+                                  <p className="text-sm text-muted-foreground">
+                                    No mill found.
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                      if (!form.millName) return;
+                                     
+                                      setMillOpen(false);
+                                    }}
+                                  >
+                                    <CirclePlus className="w-4 h-4 mr-1" />
+                                    Add “
+                                    {form.millName}
+                                    ”
+                                  </Button>
+                                </div>
+                              </CommandEmpty>
                               <CommandGroup>
                                 {mills.map((m) => (
                                   <CommandItem
                                     key={m.id}
                                     value={m.name}
-                                    onSelect={(v) => {
-                                      setMill(v === mill ? "" : v);
+                                    onSelect={() => {
+                                      setForm({
+                                        ...form,
+                                        millName: m.name,
+                                        millId: m.id,
+                                      });
                                       setMillOpen(false);
                                     }}
                                   >
                                     <CheckIcon
                                       className={`mr-2 h-4 w-4 ${
-                                        mill === m.name
+                                        form.millName === m.name
                                           ? "opacity-100"
                                           : "opacity-0"
                                       }`}
@@ -303,8 +448,8 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                             aria-expanded={clothOpen}
                             className="w-full justify-between"
                           >
-                            {clothName ? (
-                              clothName
+                            {form.clothName ? (
+                              form.clothName
                             ) : (
                               <span className="text-muted-foreground">
                                 Select...
@@ -315,22 +460,51 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                         </PopoverTrigger>
                         <PopoverContent className="w-full p-0">
                           <Command>
-                            <CommandInput placeholder="Search cloth..." />
+                            <CommandInput placeholder="Search cloth..." 
+                            onValueChange={(v)=>setForm({
+                              ...form,
+                              clothName:v
+                            })}
+                             />
                             <CommandList>
-                              <CommandEmpty>No cloth found.</CommandEmpty>
+                              <CommandEmpty>
+                                <div className="flex flex-col items-center gap-2 py-3">
+                                  <p className="text-sm text-muted-foreground">
+                                    No cloth found.
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                      if (!form.clothName) return;
+                                      
+                                      setClothOpen(false);
+                                    }}
+                                  >
+                                    <CirclePlus className="w-4 h-4 mr-1" />
+                                    Add “
+                                    {form.clothName}
+                                    ”
+                                  </Button>
+                                </div>
+                              </CommandEmpty>
                               <CommandGroup>
                                 {cloths.map((c) => (
                                   <CommandItem
                                     key={c.id}
                                     value={c.name}
-                                    onSelect={(v) => {
-                                      setClothName(v === clothName ? "" : v);
+                                    onSelect={() => {
+                                      setForm({
+                                        ...form,
+                                        clothName: c.name,
+                                        clothId: c.id,
+                                      });
                                       setClothOpen(false);
                                     }}
                                   >
                                     <CheckIcon
                                       className={`mr-2 h-4 w-4 ${
-                                        clothName === c.name
+                                        form.clothName === c.name
                                           ? "opacity-100"
                                           : "opacity-0"
                                       }`}
@@ -349,7 +523,10 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
               </AccordionItem>
 
               {/* Section 2: Purchase Details */}
-              <AccordionItem value="item-2" className="border border-gray-200 rounded-xl shadow-sm bg-white my-2">
+              <AccordionItem
+                value="item-2"
+                className="border border-gray-200 rounded-xl shadow-sm bg-white my-2"
+              >
                 <AccordionTrigger className="text-md font-semibold px-4 py-2 text-gray-800 cursor-pointer hover:text-indigo-700">
                   Purchase Details
                 </AccordionTrigger>
@@ -362,8 +539,10 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                         id="rate"
                         type="number"
                         placeholder="Enter rate"
-                        value={purchaseRate}
-                        onChange={(e) => setPurchaseRate(e.target.value)}
+                        value={form.purchaseRate}
+                        onChange={(e) =>
+                          setForm({ ...form, purchaseRate: e.target.value })
+                        }
                       />
                     </div>
 
@@ -374,8 +553,10 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                         id="qty"
                         type="number"
                         placeholder="Enter quantity"
-                        value={quantity}
-                        onChange={(e) => setQuantity(e.target.value)}
+                        value={form.quantity}
+                        onChange={(e) =>
+                          setForm({ ...form, quantity: e.target.value })
+                        }
                       />
                     </div>
 
@@ -387,12 +568,12 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                           <Button
                             variant="outline"
                             className={`w-full justify-start text-left font-normal ${
-                              !dueDate ? "text-muted-foreground" : ""
+                              !form.dueDate ? "text-muted-foreground" : ""
                             }`}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {dueDate ? (
-                              format(dueDate, "PPP")
+                            {form.dueDate ? (
+                              format(form.dueDate, "PPP")
                             ) : (
                               <span>Pick a date</span>
                             )}
@@ -401,8 +582,10 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            selected={dueDate}
-                            onSelect={setDueDate}
+                            selected={form.dueDate}
+                            onSelect={(val) =>
+                              setForm({ ...form, dueDate: val })
+                            }
                             initialFocus
                           />
                         </PopoverContent>
@@ -426,8 +609,8 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                       aria-expanded={designOpen}
                       className="w-full justify-between"
                     >
-                      {designName ? (
-                        designName
+                      {form.designName ? (
+                        form.designName
                       ) : (
                         <span className="text-muted-foreground">Select...</span>
                       )}
@@ -436,22 +619,52 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0">
                     <Command>
-                      <CommandInput placeholder="Search design..." />
+                      <CommandInput placeholder="Search design..."
+                      onValueChange={(v)=>setForm({
+                        ...form,
+                        designName:v
+                      })}
+                      
+                      />
                       <CommandList>
-                        <CommandEmpty>No design found.</CommandEmpty>
+                        <CommandEmpty>
+                                <div className="flex flex-col items-center gap-2 py-3">
+                                  <p className="text-sm text-muted-foreground">
+                                    No design found.
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                      if (!form.designName) return;
+                                      
+                                      setDesignOpen(false);
+                                    }}
+                                  >
+                                    <CirclePlus className="w-4 h-4 mr-1" />
+                                    Add “
+                                    {form.designName}
+                                    ”
+                                  </Button>
+                                </div>
+                              </CommandEmpty>
                         <CommandGroup>
                           {designs.map((c) => (
                             <CommandItem
                               key={c.id}
                               value={c.name}
-                              onSelect={(v) => {
-                                setDesignName(v === designName ? "" : v);
+                              onSelect={() => {
+                                setForm({
+                                  ...form,
+                                  designName: c.name,
+                                  designId: c.id,
+                                });
                                 setDesignOpen(false);
                               }}
                             >
                               <CheckIcon
                                 className={`mr-2 h-4 w-4 ${
-                                  designName === c.name
+                                  form.designName === c.name
                                     ? "opacity-100"
                                     : "opacity-0"
                                 }`}
@@ -477,8 +690,8 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                       aria-expanded={fabOpen}
                       className="w-full justify-between"
                     >
-                      {fabricator ? (
-                        fabricator
+                      {form.fabricatorName ? (
+                        form.fabricatorName
                       ) : (
                         <span className="text-muted-foreground">Select...</span>
                       )}
@@ -487,22 +700,51 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0">
                     <Command>
-                      <CommandInput placeholder="Search fabricator..." />
+                      <CommandInput placeholder="Search fabricator..."
+                      onValueChange={(v)=>setForm({
+                        ...form,
+                        fabricatorName:v
+                      })}
+                       />
                       <CommandList>
-                        <CommandEmpty>No fabricator found.</CommandEmpty>
+                        <CommandEmpty>
+                                <div className="flex flex-col items-center gap-2 py-3">
+                                  <p className="text-sm text-muted-foreground">
+                                    No fabricator found.
+                                  </p>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                      if (!form.fabricatorName) return;
+                                    
+                                      setFabOpen(false);
+                                    }}
+                                  >
+                                    <CirclePlus className="w-4 h-4 mr-1" />
+                                    Add “
+                                    {form.fabricatorName}
+                                    ”
+                                  </Button>
+                                </div>
+                              </CommandEmpty>
                         <CommandGroup>
                           {fabricators.map((f) => (
                             <CommandItem
                               key={f.id}
                               value={f.name}
-                              onSelect={(v) => {
-                                setFabricator(v === fabricator ? "" : v);
+                              onSelect={() => {
+                                setForm({
+                                  ...form,
+                                  fabricatorName: f.name,
+                                  fabricatorId: f.id,
+                                });
                                 setFabOpen(false);
                               }}
                             >
                               <CheckIcon
                                 className={`mr-2 h-4 w-4 ${
-                                  fabricator === f.name
+                                  form.fabricatorName === f.name
                                     ? "opacity-100"
                                     : "opacity-0"
                                 }`}
@@ -525,9 +767,12 @@ export function AddPurchaseOrderForm({managerId,clothId,agentId}) {
                   Cancel
                 </Button>
               </DialogClose>
-              <Button type="submit" className="w-full sm:w-auto">
+              {saving?<Button type="submit" className="w-full sm:w-auto" disabled>
+                Saving...
+              </Button>:<Button type="submit" className="w-full sm:w-auto">
                 Save changes
-              </Button>
+              </Button>}
+              
             </DialogFooter>
           </form>
         </ScrollArea>

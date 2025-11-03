@@ -10,7 +10,7 @@ const cloths = [
   { id: 4, name: "Cloth 4", total: 400, dispatched: 350, pending: 50 },
 ];
 
-export default function ClothWiseDetailsTable({ managerId }) {
+export default function ClothWiseDetailsTable() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredClothes = cloths.filter((cloth) =>
@@ -83,7 +83,7 @@ export default function ClothWiseDetailsTable({ managerId }) {
                 >
                   <td className="px-4 py-4 whitespace-nowrap">
                     <Link
-                      href={`/cloth-dashboard/${cloth.id}?managerId=${managerId}`}
+                      href={`/cloth-dashboard/${cloth.id}`}
                     >
                       <div className="text-lg font-medium text-gray-900">
                         {cloth.name}

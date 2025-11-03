@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, date, index, integer, numeric, pgEnum, pgTable, serial, text, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, date, index, integer, numeric, pgEnum, pgTable, serial, text, unique, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 
 export const roleEnum = pgEnum("role", ["Manager", "Admin","Employee"]);
@@ -31,16 +31,20 @@ export const employees = pgTable("employees", {
 
 export const agents= pgTable("agents",{
   id:uuid("agent_id").default(sql`gen_random_uuid()`).primaryKey(),
-  name:text("name").unique(),
+  name:text("name"),
   managerId: uuid("manager_id").references(() => users.id),
-})
+},(t)=>[
+  unique("agent_per_manager").on(t.name,t.managerId)
+])
 export const party= pgTable("party",{
   id:uuid("party_id").default(sql`gen_random_uuid()`).primaryKey(),
-  name:text("name").unique(),
+  name:text("name"),
   managerId: uuid("manager_id").references(() => users.id),
   pendingCases: integer("pending_cases").default(0),
   dispatchedCases: integer("dispatched_cases").default(0)
-})
+},(t)=>[
+  unique("party_per_manager").on(t.name,t.managerId)
+])
 
 export const saleOrder= pgTable("sales_order",{
   id:uuid("sales_order_id").default(sql`gen_random_uuid()`).primaryKey(),
@@ -72,60 +76,66 @@ export const organizations = pgTable("organizations", {
 // PROD MANAGER TABLES
 
 export const fabricators=pgTable("fabricators",{
-  id:uuid("id").primaryKey(),
+  id:uuid("id").default(sql`gen_random_uuid()`).primaryKey(),
   name:varchar("name").notNull(),
   total:integer("total"),
   dispatched:integer("dispatched"),
   pending:integer("pending"),
   managerId:uuid("manager_id").notNull().references(()=>users.id)
 },(t)=>[
-  index("manager_fabricator_index").on(t.managerId)
+  index("manager_fabricator_index").on(t.managerId),
+  unique("fabricator_per_manager").on(t.managerId,t.name)
 ]);
 
 export const cloths=pgTable("cloths",{
-  id:uuid("id").primaryKey(),
+  id:uuid("id").default(sql`gen_random_uuid()`).primaryKey(),
   name:varchar("name").notNull(),
   total:integer("total"),
   dispatched:integer("dispatched"),
   pending:integer("pending"),
   managerId:uuid("manager_id").notNull().references(()=>users.id)
 },(t)=>[
-  index("manager_cloth_index").on(t.managerId)
+  index("manager_cloth_index").on(t.managerId),
+  unique("cloth_per_manager").on(t.managerId,t.name)
 ]);
 
 export const designs=pgTable("designs",{
-  id:uuid("id").primaryKey(),
+  id:uuid("id").default(sql`gen_random_uuid()`).primaryKey(),
   name:varchar("name").notNull(),
   total:integer("total"),
   dispatched:integer("dispatched"),
   pending:integer("pending"),
   managerId:uuid("manager_id").notNull().references(()=>users.id)
 },(t)=>[
-  index("manager_design_index").on(t.managerId)
+  index("manager_design_index").on(t.managerId),
+  unique("design_per_manager").on(t.managerId,t.name)
 ]);
 
 export const clothBuyAgents=pgTable("buy_agents",{
-  id:uuid("id").primaryKey(),
+  id:uuid("id").default(sql`gen_random_uuid()`).primaryKey(),
   name:varchar("name").notNull(),
   total:integer("total"),
   dispatched:integer("dispatched"),
   pending:integer("pending"),
   managerId:uuid("manager_id").notNull().references(()=>users.id)
 },(t)=>[
-  index("manager_buyagent_index").on(t.managerId)
+  index("manager_buyagent_index").on(t.managerId),
+  unique("clothAgent_per_manager").on(t.managerId,t.name)
 ]);
 
 export const mills=pgTable("mills",{
-  id:uuid("id").primaryKey(),
+  id:uuid("id").default(sql`gen_random_uuid()`).primaryKey(),
   name:varchar("name").notNull(),
   managerId:uuid("manager_id").notNull().references(()=>users.id)
 },(t)=>[
-  index("manager_mill_index").on(t.managerId)
+  index("manager_mill_index").on(t.managerId),
+  unique("mill_per_manager").on(t.managerId,t.name)
 ]);
 
 
 export const jobOrder= pgTable("job_order",{
   jobSlipNumber: varchar("job_slip_no.").primaryKey(),
+  managerId:uuid("manager_id").notNull().references(()=>users.id),
   orderDate:date("order_date").defaultNow(),
   fabricatorId:uuid("fabricator_id").references(()=>fabricators.id),
   dueDate:date("due_date"),
@@ -142,7 +152,8 @@ export const jobOrder= pgTable("job_order",{
 
 },(t)=>[
   index("fabricator_wise_index").on(t.fabricatorId),
-  index("design_wise_index").on(t.designId)
+  index("design_wise_index").on(t.designId),
+  index("manager_wise_job_orders").on(t.managerId)
 ]);
 
 export const jobOrderExpenses = pgTable("job_order_expenses", {
@@ -151,26 +162,31 @@ export const jobOrderExpenses = pgTable("job_order_expenses", {
     .references(() => jobOrder.jobSlipNumber)
     .notNull(),
   expenseName: varchar("expense_name").notNull(),
+  managerId:uuid("manager_id").notNull().references(()=>users.id),
   amount: numeric("amount").default("0.0").notNull(),
-});
+},(t)=>[
+  index("manager_job_order_expenses").on(t.managerId)
+]);
 
 
 export const purchaseOrder=pgTable("purchase_order",{
-  id:uuid("id").primaryKey(),
+  id:uuid("id").default(sql`gen_random_uuid()`).primaryKey(),
   POnumber:varchar("po_number"),
+  managerId:uuid("manager_id").notNull().references(()=>users.id),
   orderDate:date("order_date").defaultNow(),
   agentId:uuid("agent_id").references(()=>clothBuyAgents.id),
   millId:uuid("mills_id").references(()=>mills.id),
   clothId:uuid("cloth_id").references(()=>cloths.id),
   purchaseRate:numeric("price").default("0.0"),
   quantity:numeric("quantity"),
-  dueDate:date("order_date").defaultNow(),
+  dueDate:date("due_date").defaultNow(),
   designId:uuid("design_id").references(()=>designs.id),
   fabricatorId:uuid("fabricator_id").references(()=>fabricators.id)
 },(t)=>[
   uniqueIndex("po_number_index").on(t.POnumber),
   index("agent_wise_index").on(t.agentId),
-  index("cloth_wise_index").on(t.clothId)
+  index("cloth_wise_index").on(t.clothId),
+  index("manager_wise_purchase_orders")
 ])
 
 
