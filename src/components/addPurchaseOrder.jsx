@@ -46,7 +46,7 @@ import { useProdManager } from "@/context/ProdManagerContext";
 import { useGlobalUser } from "@/context/UserContext";
 import toast from "react-hot-toast";
 
-export function AddPurchaseOrderForm({ clothId, agentId }) {
+export function AddPurchaseOrderForm({ clothId, agentId,onSuccess }) {
   const [agentOpen, setAgentOpen] = useState(false);
   const [millOpen, setMillOpen] = useState(false);
   const [clothOpen, setClothOpen] = useState(false);
@@ -75,7 +75,7 @@ export function AddPurchaseOrderForm({ clothId, agentId }) {
     addClothBuyAgent,
   } = useProdManager();
 
-  const initialFormState = (currentUser) => ({
+  const initialFormState = () => ({
   POnumber: "",
   date: new Date(),
   agentId: null,
@@ -91,7 +91,7 @@ export function AddPurchaseOrderForm({ clothId, agentId }) {
   purchaseRate: "",
   quantity: "",
   dueDate: null,
-  managerId: currentUser?.id || "",
+  managerId: currentUser?.id
 });
 
 
@@ -166,6 +166,7 @@ const handleSubmit = async (e) => {
         designId,
         fabricatorId,
       };
+      console.log("form",finalOrder);
       const res= await fetch("/api/purchaseOrder",{
         method:"POST",
         headers: {
@@ -181,6 +182,11 @@ const handleSubmit = async (e) => {
     toast.success("Purchase order created successfully");
     setForm(initialFormState);
 
+    if(onSuccess){
+      onSuccess();
+    }
+    
+
     } catch (error) {
       console.error("❌ Error submitting form:", error);
       toast.error("Error creating purchase order");
@@ -192,6 +198,8 @@ const handleSubmit = async (e) => {
   const handleCancel=()=>{
     setForm(initialFormState);
   }
+
+  if(!currentUser)return <div>Loading...</div>
 
   return (
     <Dialog>

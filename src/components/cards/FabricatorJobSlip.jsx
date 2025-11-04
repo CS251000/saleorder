@@ -12,25 +12,30 @@ import { Button } from "../ui/button";
 import JobSlipInfoDialog from "../jobSlipInfoDialog";
 import { Edit3, Info, Trash2 } from "lucide-react";
 
-export default function FabricatorJobSlipCard({ jobSlip }) {
+export default function ItemJobSlipCard({ jobSlip }) {
   const [open, setOpen] = useState(false);
 
   return (
     <div>
-      <Card className={` ${jobSlip.status==='Bestseller'?"border-2 border-amber-200":""} hover:shadow-lg transition-all`}>
+      <Card
+        className={` ${
+          jobSlip.isBestSeller ? "border-2 border-amber-200" : ""
+        } hover:shadow-lg transition-all`}
+      >
         <CardHeader>
           <CardTitle className="text-lg font-semibold">
-            Job #{jobSlip.id}
+            Job #{jobSlip.jobSlipNumber}
           </CardTitle>
-          <CardDescription>Design: {jobSlip.designNumber}</CardDescription>
+          <CardDescription>Design: {jobSlip.designName}</CardDescription>
           <div className="text-sm font-medium text-blue-600">
             Status: {jobSlip.status}
           </div>
         </CardHeader>
 
         <CardContent className="text-sm space-y-1">
-          <p>📅 Order Date: {jobSlip.OrderDate}</p>
-          <p>🚚 Delivery Date: {jobSlip.deliveryDate}</p>
+          <p>📅 Order Date: {new Date(jobSlip.orderDate).toLocaleDateString()}</p>
+
+          <p>🚚 Delivery Date: {new Date(jobSlip.dueDate).toLocaleDateString()}</p>
         </CardContent>
 
         <CardFooter className="flex justify-center items-center gap-3">

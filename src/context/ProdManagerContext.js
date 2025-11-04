@@ -1,251 +1,246 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useCallback } from "react";
+import useSWR, { mutate } from "swr";
 import { useGlobalUser } from "./UserContext";
 
 const ProdManagerContext = createContext();
 
 export const ProdManagerProvider = ({ children }) => {
   const { currentUser } = useGlobalUser();
+  const managerId = currentUser?.id;
 
-  /* ----------------------------- 🧵 FABRICATORS ----------------------------- */
-  const [fabricators, setFabricators] = useState([]);
-  const [loadingFabricators, setLoadingFabricators] = useState(false);
-
-  const getFabricators = async () => {
-    if (!currentUser?.id) return;
-    setLoadingFabricators(true);
-    try {
-      const res = await fetch(`/api/fabricators?managerId=${currentUser.id}`);
-      const data = await res.json();
-      if (res.ok) setFabricators(data.fabricators || []);
-      else console.error("Error fetching fabricators:", data.error);
-    } catch (err) {
-      console.error("Failed to fetch fabricators:", err);
-    } finally {
-      setLoadingFabricators(false);
-    }
+  // Global fetcher for all APIs
+  const fetcher = async (url) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Failed to fetch: " + url);
+    return res.json();
   };
 
-  const addFabricator = async (name) => {
-    if (!name || !currentUser?.id) return;
-    try {
+  /* ----------------------------- 🧵 FABRICATORS ----------------------------- */
+  const {
+    data: fabricatorData,
+    error: fabricatorError,
+    isLoading: loadingFabricators,
+    mutate: mutateFabricators,
+  } = useSWR(
+    managerId ? `/api/fabricators?managerId=${managerId}` : null,
+    fetcher,
+    {
+      revalidateOnFocus: true,
+      dedupingInterval: 60 * 1000, // 1 min
+    }
+  );
+
+  const getFabricators = useCallback(() => mutateFabricators(), [mutateFabricators]);
+
+  const addFabricator = useCallback(
+    async (name) => {
+      if (!name || !managerId) return;
       const res = await fetch("/api/fabricators", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fabricatorName: name, managerId: currentUser.id }),
+        body: JSON.stringify({ fabricatorName: name, managerId }),
       });
       const data = await res.json();
       if (res.ok) {
-        const newFabricator= {id:data.fabricator.fabricatorId,name,total:0,dispatched:0,pending:0};
-        setFabricators((prev) => [
-          ...prev,newFabricator
-        ]);
-        return newFabricator
+        const newFabricator = {
+          id: data.fabricator.fabricatorId,
+          name,
+          total: 0,
+          dispatched: 0,
+          pending: 0,
+        };
+        // Optimistic update
+        mutateFabricators(
+          (prev) => ({ fabricators: [...(prev?.fabricators || []), newFabricator] }),
+          false
+        );
+        // Background revalidation
+        mutateFabricators();
+        return newFabricator;
       } else console.error("Error adding fabricator:", data.error);
-    } catch (err) {
-      console.error("Failed to add fabricator:", err);
-    }
-  };
+    },
+    [managerId, mutateFabricators]
+  );
 
   /* ------------------------------- 👕 CLOTHS ------------------------------- */
-  const [cloths, setCloths] = useState([]);
-  const [loadingCloths, setLoadingCloths] = useState(false);
+  const {
+    data: clothData,
+    error: clothError,
+    isLoading: loadingCloths,
+    mutate: mutateCloths,
+  } = useSWR(
+    managerId ? `/api/cloths?managerId=${managerId}` : null,
+    fetcher,
+    { revalidateOnFocus: true, dedupingInterval: 60 * 1000 }
+  );
 
-  const getCloths = async () => {
-    if (!currentUser?.id) return;
-    setLoadingCloths(true);
-    try {
-      const res = await fetch(`/api/cloths?managerId=${currentUser.id}`);
-      const data = await res.json();
-      if (res.ok) setCloths(data.clothsList || []);
-      else console.error("Error fetching cloths:", data.error);
-    } catch (err) {
-      console.error("Failed to fetch cloths:", err);
-    } finally {
-      setLoadingCloths(false);
-    }
-  };
+  const getCloths = useCallback(() => mutateCloths(), [mutateCloths]);
 
-  const addCloth = async (name) => {
-    if (!name || !currentUser?.id) return;
-    try {
+  const addCloth = useCallback(
+    async (name) => {
+      if (!name || !managerId) return;
       const res = await fetch("/api/cloths", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clothName: name, managerId: currentUser.id }),
+        body: JSON.stringify({ clothName: name, managerId }),
       });
       const data = await res.json();
       if (res.ok) {
-        const newCloth={id: data.cloth.clothId, name}
-        setCloths((prev) => [...prev, newCloth]);
-        return newCloth
+        const newCloth = { id: data.cloth.clothId, name };
+        mutateCloths(
+          (prev) => ({ clothsList: [...(prev?.clothsList || []), newCloth] }),
+          false
+        );
+        mutateCloths();
+        return newCloth;
       } else console.error("Error adding cloth:", data.error);
-    } catch (err) {
-      console.error("Failed to add cloth:", err);
-    }
-  };
+    },
+    [managerId, mutateCloths]
+  );
 
   /* ----------------------------- 🎨 DESIGNS ----------------------------- */
-  const [designs, setDesigns] = useState([]);
-  const [loadingDesigns, setLoadingDesigns] = useState(false);
+  const {
+    data: designData,
+    error: designError,
+    isLoading: loadingDesigns,
+    mutate: mutateDesigns,
+  } = useSWR(
+    managerId ? `/api/designs?managerId=${managerId}` : null,
+    fetcher,
+    { revalidateOnFocus: true, dedupingInterval: 60 * 1000 }
+  );
 
-  const getDesigns = async () => {
-    if (!currentUser?.id) return;
-    setLoadingDesigns(true);
-    try {
-      const res = await fetch(`/api/designs?managerId=${currentUser.id}`);
-      const data = await res.json();
-      if (res.ok) setDesigns(data.designs || []);
-      else console.error("Error fetching designs:", data.error);
-    } catch (err) {
-      console.error("Failed to fetch designs:", err);
-    } finally {
-      setLoadingDesigns(false);
-    }
-  };
+  const getDesigns = useCallback(() => mutateDesigns(), [mutateDesigns]);
 
-  const addDesign = async (name) => {
-    if (!name || !currentUser?.id) return;
-    try {
+  const addDesign = useCallback(
+    async (name) => {
+      if (!name || !managerId) return;
       const res = await fetch("/api/designs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ designName: name, managerId: currentUser.id }),
+        body: JSON.stringify({ designName: name, managerId }),
       });
       const data = await res.json();
       if (res.ok) {
-        const newDesign={ id: data.design.designId, name }
-        setDesigns((prev) => [...prev,newDesign ]);
+        const newDesign = { id: data.design.designId, name };
+        mutateDesigns(
+          (prev) => ({ designs: [...(prev?.designs || []), newDesign] }),
+          false
+        );
+        mutateDesigns();
         return newDesign;
       } else console.error("Error adding design:", data.error);
-    } catch (err) {
-      console.error("Failed to add design:", err);
-    }
-  };
+    },
+    [managerId, mutateDesigns]
+  );
 
   /* ----------------------------- 🏭 MILLS ----------------------------- */
-  const [mills, setMills] = useState([]);
-  const [loadingMills, setLoadingMills] = useState(false);
+  const {
+    data: millData,
+    error: millError,
+    isLoading: loadingMills,
+    mutate: mutateMills,
+  } = useSWR(
+    managerId ? `/api/mills?managerId=${managerId}` : null,
+    fetcher,
+    { revalidateOnFocus: true, dedupingInterval: 60 * 1000 }
+  );
 
-  const getMills = async () => {
-    if (!currentUser?.id) return;
-    setLoadingMills(true);
-    try {
-      const res = await fetch(`/api/mills?managerId=${currentUser.id}`);
-      const data = await res.json();
-      if (res.ok) setMills(data.mills || []);
-      else console.error("Error fetching mills:", data.error);
-    } catch (err) {
-      console.error("Failed to fetch mills:", err);
-    } finally {
-      setLoadingMills(false);
-    }
-  };
+  const getMills = useCallback(() => mutateMills(), [mutateMills]);
 
-  const addMill = async (name) => {
-    if (!name || !currentUser?.id) return;
-    try {
+  const addMill = useCallback(
+    async (name) => {
+      if (!name || !managerId) return;
       const res = await fetch("/api/mills", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ millName: name, managerId: currentUser.id }),
+        body: JSON.stringify({ millName: name, managerId }),
       });
       const data = await res.json();
       if (res.ok) {
-        const newMill={ id: data.mill.millId, name }
-        setMills((prev) => [...prev,newMill]);
-        return newMill
+        const newMill = { id: data.mill.millId, name };
+        mutateMills(
+          (prev) => ({ mills: [...(prev?.mills || []), newMill] }),
+          false
+        );
+        mutateMills();
+        return newMill;
       } else console.error("Error adding mill:", data.error);
-    } catch (err) {
-      console.error("Failed to add mill:", err);
-    }
-  };
+    },
+    [managerId, mutateMills]
+  );
 
   /* -------------------------- 🧾 CLOTH BUY AGENTS -------------------------- */
-  const [clothBuyAgents, setClothBuyAgents] = useState([]);
-  const [loadingAgents, setLoadingAgents] = useState(false);
+  const {
+    data: agentData,
+    error: agentError,
+    isLoading: loadingAgents,
+    mutate: mutateAgents,
+  } = useSWR(
+    managerId ? `/api/clothBuyAgents?managerId=${managerId}` : null,
+    fetcher,
+    { revalidateOnFocus: true, dedupingInterval: 60 * 1000 }
+  );
 
-  const getClothBuyAgents = async () => {
-    if (!currentUser?.id) return;
-    setLoadingAgents(true);
-    try {
-      const res = await fetch(`/api/clothBuyAgents?managerId=${currentUser.id}`);
-      const data = await res.json();
-      if (res.ok) setClothBuyAgents(data.agents || []);
-      else console.error("Error fetching agents:", data.error);
-    } catch (err) {
-      console.error("Failed to fetch agents:", err);
-    } finally {
-      setLoadingAgents(false);
-    }
-  };
+  const getClothBuyAgents = useCallback(() => mutateAgents(), [mutateAgents]);
 
-  const addClothBuyAgent = async (name) => {
-    if (!name || !currentUser?.id) return;
-    try {
+  const addClothBuyAgent = useCallback(
+    async (name) => {
+      if (!name || !managerId) return;
       const res = await fetch("/api/clothBuyAgents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentName: name, managerId: currentUser.id }),
+        body: JSON.stringify({ agentName: name, managerId }),
       });
       const data = await res.json();
       if (res.ok) {
-        const newAgent={ id: data.clothBuyAgent.agentId, name }
-        setClothBuyAgents((prev) => [...prev,newAgent ]);
+        const newAgent = { id: data.clothBuyAgent.agentId, name };
+        mutateAgents(
+          (prev) => ({ agents: [...(prev?.agents || []), newAgent] }),
+          false
+        );
+        mutateAgents();
         return newAgent;
       } else console.error("Error adding agent:", data.error);
-    } catch (err) {
-      console.error("Failed to add agent:", err);
-    }
-  };
+    },
+    [managerId, mutateAgents]
+  );
 
-  /* -------------------------- 🌐 Auto fetch all -------------------------- */
-  useEffect(() => {
-    if (currentUser?.id) {
-      getFabricators();
-      getCloths();
-      getDesigns();
-      getMills();
-      getClothBuyAgents();
-    }
-  }, [currentUser]);
-
-
-  /* ----------------------------- 🚀 Context value ----------------------------- */
+  /* ----------------------------- 🚀 Context Value ----------------------------- */
   return (
     <ProdManagerContext.Provider
       value={{
         // Fabricators
-        fabricators,
+        fabricators: fabricatorData?.fabricators || [],
         loadingFabricators,
         getFabricators,
         addFabricator,
 
         // Cloths
-        cloths,
+        cloths: clothData?.clothsList || [],
         loadingCloths,
         getCloths,
         addCloth,
 
         // Designs
-        designs,
+        designs: designData?.designs || [],
         loadingDesigns,
         getDesigns,
         addDesign,
 
         // Mills
-        mills,
+        mills: millData?.mills || [],
         loadingMills,
         getMills,
         addMill,
 
         // Cloth Buy Agents
-        clothBuyAgents,
+        clothBuyAgents: agentData?.agents || [],
         loadingAgents,
         getClothBuyAgents,
         addClothBuyAgent,
-
       }}
     >
       {children}

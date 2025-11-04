@@ -90,7 +90,7 @@ const purchaseOrders = [
   },
 ];
 
-export function AddJobOrderForm({ fabricatorId, designId }) {
+export function AddJobOrderForm({ fabricatorId, designId,onSuccess }) {
   const [fabOpen, setFabOpen] = useState(false);
   const [clothOpen, setClothOpen] = useState(false);
   const [designOpen, setDesignOpen] = useState(false);
@@ -100,7 +100,6 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
   const [expenseToAdd, setExpenseToAdd] = useState("");
   const [poOpen, setPoOpen] = useState(false);
   const [selectedPO, setSelectedPO] = useState(null);
-
   const [expenses, setExpenses] = useState([]);
   const [expenseSaving,setExpenseSaving]= useState(false);
 
@@ -209,16 +208,28 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
 
 
   // ✅ Preselect fabricator if ID is passed via props
-  useEffect(() => {
-    if (fabricatorId) {
-      const found = fabricators.find((f) => f.id === Number(fabricatorId));
-      if (found) setFabricator(found.name);
+useEffect(() => {
+  if (fabricatorId) {
+    const found = fabricators.find((f) => f.id === Number(fabricatorId));
+    if (found) {
+      setForm((prev) => ({
+        ...prev,
+        fabricatorName: found.name,
+      }));
     }
-    if (designId) {
-      const foundDesign = designs.find((d) => d.id === Number(designId));
-      if (foundDesign) setDesignName(foundDesign.name);
+  }
+
+  if (designId) {
+    const foundDesign = designs.find((d) => d.id === Number(designId));
+    if (foundDesign) {
+      setForm((prev) => ({
+        ...prev,
+        designName: foundDesign.name,
+      }));
     }
-  }, [fabricatorId, designId]);
+  }
+}, [fabricatorId, designId, fabricators, designs]);
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -298,6 +309,11 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
       toast.success("Job Slip created successfully ✅");
       setForm(initialFormState);
       setSelectedExpenses([]);
+
+      if(onSuccess){
+        onSuccess();
+      }
+
     } catch (error) {
       console.error("❌ Error submitting job slip:", error);
       toast.error("Error creating job slip");

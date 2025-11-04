@@ -2,17 +2,13 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import { Input } from "../ui/input";
-import { fi } from "date-fns/locale";
-
-const items = [
-  { id: 1, name: "Item 1", total: 100, dispatched: 80, pending: 20 },
-  { id: 2, name: "Item 2", total: 200, dispatched: 150, pending: 50 },
-  { id: 3, name: "Item 3", total: 300, dispatched: 250, pending: 50 },
-  { id: 4, name: "Item 4", total: 400, dispatched: 350, pending: 50 },
-];
+import { useProdManager } from "@/context/ProdManagerContext";
 
 export default function ItemWiseDetailsTable() {
   const [searchTerm, setSearchTerm] = useState("");
+  const {designs,loadingDesigns}= useProdManager();
+  const items=designs;
+  items.sort((a,b)=>b.pending-a.pending);
 
   const filteredItems = items.filter((item) =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -73,7 +69,7 @@ export default function ItemWiseDetailsTable() {
                   colSpan={4}
                   className="px-4 py-6 text-center text-lg text-gray-500 border"
                 >
-                  No items found.
+                  {loadingDesigns?"Loading...":"No items found"}
                 </td>
               </tr>
             ) : (

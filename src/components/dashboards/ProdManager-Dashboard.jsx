@@ -10,13 +10,29 @@ import {
 import { AddJobOrderForm } from "../addJobOrder";
 import { AddPurchaseOrderForm } from "../addPurchaseOrder";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
-import { BookPlus, ClipboardPlus, PackageSearch } from "lucide-react";
+import {  PackageSearch } from "lucide-react";
 import ItemWiseDetailsTable from "./ItemWiseTable";
 import FabricatorWiseDetailsTable from "./FabricatorWiseTable";
 import AgentWiseDetailsTable from "./AgentWiseTable";
 import ClothWiseDetailsTable from "./ClothWiseTable";
+import { mutate } from "swr";
+import { useGlobalUser } from "@/context/UserContext";
 
 export default function ProdManagerDashboard() {
+  const {currentUser}= useGlobalUser();
+  const managerId=currentUser.id;
+
+  const handleAddSuccessJO = () => {
+    if(!managerId)return;
+    mutate(`/api/fabricators?managerId=${managerId}`);
+    mutate(`/api/designs?managerId=${managerId}`);
+  };
+
+  const handleAddSuccessPO=()=>{
+    mutate(`/api/clothBuyAgents?managerId=${managerId}`);
+    mutate(`/api/cloths?managerId=${managerId}`);
+  }
+
   return (
     <div className="flex flex-col gap-8 px-4 sm:px-6 lg:px-10 py-6 bg-gray-50 min-h-screen">
       {/* ✅ Header Section */}
@@ -24,8 +40,8 @@ export default function ProdManagerDashboard() {
         <div className="flex flex-col md:flex-row sm:items-center sm:justify-between">
           <h1 className="text-lg md:text-2xl text-white font-bold mb-2">Production Manager Dashboard</h1>
           <div className="flex space-x-2">
-            <AddJobOrderForm />
-            <AddPurchaseOrderForm />
+            <AddJobOrderForm onSuccess={handleAddSuccessJO}/>
+            <AddPurchaseOrderForm onSuccess={handleAddSuccessPO} />
           </div>
         </div>
       </div> 

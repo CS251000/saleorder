@@ -2,16 +2,13 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import { Input } from "../ui/input";
-
-const agents = [
-  { id: 1, name: "Agent 1", total: 100, dispatched: 80, pending: 20 },
-  { id: 2, name: "Agent 2", total: 200, dispatched: 150, pending: 50 },
-  { id: 3, name: "Agent 3", total: 300, dispatched: 250, pending: 50 },
-  { id: 4, name: "Agent 4", total: 400, dispatched: 350, pending: 50 },
-];
+import { useProdManager } from "@/context/ProdManagerContext";
 
 export default function AgentWiseDetailsTable() {
   const [searchTerm, setSearchTerm] = useState("");
+  const {clothBuyAgents,loadingAgents}= useProdManager();
+  const agents=clothBuyAgents;
+  agents.sort((a,b)=>b.pending-a.pending);
 
   const filteredAgents = agents.filter((agent) =>
     agent.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -72,7 +69,7 @@ export default function AgentWiseDetailsTable() {
                   colSpan={4}
                   className="px-4 py-6 text-center text-lg text-gray-500 border"
                 >
-                  No items found.
+                  {loadingAgents?"Loading...":"No items found"}
                 </td>
               </tr>
             ) : (

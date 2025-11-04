@@ -1,74 +1,86 @@
 "use client";
-import { AddPurchaseOrderForm } from '@/components/addPurchaseOrder';
-import AgentPO from '@/components/cards/AgentPo';
-import Navbar2 from '@/components/Navbar2';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useParams } from 'next/navigation';
-import React, { useState } from 'react'
 
-const agents = [
-  { id: 1, name: "Agent A" },
-  { id: 2, name: "Agent B" },
-  { id: 3, name: "Agent C" },
-];
+import { AddPurchaseOrderForm } from "@/components/addPurchaseOrder";
+import AgentPO from "@/components/cards/AgentPo";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useGlobalUser } from "@/context/UserContext";
+import { useParams } from "next/navigation";
+import React, { useState, useMemo } from "react";
+import useSWR from "swr";
 
-const purchaseOrders = [
-  {
-    POnumber: "PO-001",
-    id: 1,
-    orderDate: "2024-01-15",
-    agentId: 1,
-    mill: "Mill X",
-    clothName: "Cloth A",
-    purchaseRate: "50",
-    designName: "Design X",
-    fabricator: "Fabricator 1",
-    quantity: "100",
-    dueDate: "2024-02-15",
-    status:"Pending"
-  },
-  {
-    POnumber: "PO-002",
-    id: 2,
-    orderDate: "2024-01-16",
-    agentId: 2,
-    mill: "Mill Y",
-    clothName: "Cloth B",
-    purchaseRate: "60",
-    quantity: "200",
-    dueDate: "2024-02-16",
-    status:"Completed"
-  },
-  {
-    POnumber: "PO-003",
-    id: 3,
-    orderDate: "2024-01-17",
-    agentId: 3,
-    mill: "Mill Z",
-    clothName: "Cloth A",
-    designName: "Design Y",
-    fabricator: "Fabricator 2",
-    purchaseRate: "70",
-    quantity: "300",
-    dueDate: "2024-02-17",
-    status:"Completed"
-  },
-];
+/* ----------------------------- 🧠 SWR Fetcher ----------------------------- */
+const fetcher = async (url) => {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch: ${url}`);
+  return res.json();
+};
 
-export default function ClothDashboardPage() {
-  const params= useParams();
-  const {agentid}=params;
-  const [searchTerm, setSearchTerm] =useState("");
-  const [showType,setShowType]=useState("all");
+export default function AgentDashboardPage() {
+  const params = useParams();
+  const { agentid } = params;
+  const { currentUser } = useGlobalUser();
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showType, setShowType] = useState("all");
+
+  /* ----------------------------- 💾 Fetch Data ----------------------------- */
+  const {
+    data: purchaseOrders = [],
+    error,
+    isLoading,
+    mutate,
+  } = useSWR(
+    currentUser?.id && agentid
+      ? `/api/purchaseOrder?managerId=${currentUser.id}&agentId=${agentid}`
+      : null,
+    fetcher,
+    {
+      revalidateOnFocus: true, // refresh when tab gains focus
+      dedupingInterval: 60 * 1000, // prevent refetch within 1 min
+    }
+  );
+
+  const loading = isLoading && !purchaseOrders?.length;
+
+  /* ----------------------------- 🔍 Search + Filter ----------------------------- */
+  const filteredPOs = useMemo(() => {
+    return (purchaseOrders || []).filter((po) => {
+      const matchesStatus =
+        showType === "all"
+          ? true
+          : showType === "pending"
+          ? po.status === "Pending"
+          : po.status === "Completed";
+
+      const matchesSearch = po.poNumber
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+      return matchesStatus && matchesSearch;
+    });
+  }, [purchaseOrders, showType, searchTerm]);
+
+  /* ----------------------------- 🚀 Add PO Callback ----------------------------- */
+  const handleAddSuccess = () => {
+    // Revalidate purchase orders after new one is added
+    mutate();
+  };
+
+  /* ----------------------------- 🖥️ Render ----------------------------- */
+  if (!currentUser)
+    return <div className="text-center text-gray-500">Loading user...</div>;
+
   return (
-    <div>
-      {/* <Navbar2/> */}
-      <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="font-bold text-3xl break-words">{agents.find((a)=>a.id==agentid).name}</h2>
+        <h2 className="font-bold text-3xl break-words">
+          {purchaseOrders?.[0]?.agentName || "Agent Dashboard"}
+        </h2>
+
+        {/* Search */}
         <div className="relative w-full sm:w-80">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -93,12 +105,17 @@ export default function ClothDashboardPage() {
           />
         </div>
 
+        {/* Add New PO */}
         <div className="flex flex-row gap-3 flex-wrap justify-center sm:justify-end">
-          <AddPurchaseOrderForm agentId={agentid}/>
+          <AddPurchaseOrderForm
+            managerId={currentUser.id}
+            agentId={agentid}
+            onSuccess={handleAddSuccess}
+          />
         </div>
-
-        
       </div>
+
+      {/* Tabs */}
       <Card className="shadow-md p-4 w-full">
         <CardHeader className="p-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -107,53 +124,57 @@ export default function ClothDashboardPage() {
             </CardTitle>
           </div>
         </CardHeader>
-        <CardContent className={'flex flex-row gap-4'}>
+
+        <CardContent className="flex flex-row gap-4">
           <div className="w-full flex justify-center sm:justify-start">
-          <Tabs
-            defaultValue="all"
-            className="w-full sm:w-auto rounded-md p-1"
-          >
-            <TabsList className="flex flex-row justify-around w-full sm:w-auto">
-              <TabsTrigger value="all"
-                onClick={()=>setShowType("all")}
-              >
-                All
-              </TabsTrigger>
+            <Tabs
+              defaultValue="all"
+              className="w-full sm:w-auto rounded-md p-1"
+            >
+              <TabsList className="flex flex-row justify-around w-full sm:w-auto">
+                <TabsTrigger value="all" onClick={() => setShowType("all")}>
+                  All
+                </TabsTrigger>
                 <TabsTrigger
                   value="pending"
-                  onClick={()=>setShowType("pending")}
+                  onClick={() => setShowType("pending")}
                 >
                   Pending
                 </TabsTrigger>
                 <TabsTrigger
                   value="completed"
-                  onClick={()=>setShowType("completed")}
+                  onClick={() => setShowType("completed")}
                 >
                   Completed
                 </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
+              </TabsList>
+            </Tabs>
+          </div>
         </CardContent>
       </Card>
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4  gap-4'>
-        {purchaseOrders.filter((po)=>{
-          if(showType==="all"){
-            return po;
-          }
-          if(showType==="pending"){
-            return po.status==="Pending";
-          }
-          if(showType==="completed"){
-            return po.status==="Completed";
-          }
-        }).map((po)=>(
-          <AgentPO key={po.id} purchaseOrder={po} />
-        ))}
-      </div>
 
+      {/* Loading + Error States */}
+      {loading && (
+        <p className="text-center text-gray-500 animate-pulse">Loading...</p>
+      )}
+      {error && (
+        <p className="text-center text-red-500">
+          Failed to load purchase orders.
+        </p>
+      )}
+
+      {/* PO Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {filteredPOs.length > 0 ? (
+          filteredPOs.map((po) => (
+            <AgentPO key={po.id} purchaseOrder={po} />
+          ))
+        ) : !loading ? (
+          <p className="text-center col-span-full text-gray-500">
+            No Purchase Orders Found
+          </p>
+        ) : null}
+      </div>
     </div>
-    </div>
-  )
+  );
 }

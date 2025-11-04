@@ -1,115 +1,90 @@
 "use client";
-import { AddJobOrderForm } from '@/components/addJobOrder';
-import ItemJobSlipCard from '@/components/cards/ItemJobSlip';
-import { FilterJobOrder } from '@/components/filterJobOrder';
-import Navbar2 from '@/components/Navbar2';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useParams } from 'next/navigation';
-import React, { useState } from 'react'
 
-const items = [
-  {
-    id: 1,
-    designNumber: "D001",
-    orderDate: "2023-10-01",
-    deliveryDate: "2023-10-05",
-    status: "Pending",
-    fabricator: "ABC Textiles",
-    isSampleGiven: true,
-    materialDetails: {
-      clothName: "Cotton Poplin",
-      totalMeter: 45,
-      price: 3200,
-    },
-    shirtDetails: {
-      designName: "Classic White Shirt",
-      average: 1.2, // meters per shirt
-      fabrication: 150,
-      expense: 80,
-      costing: 350,
-    },
-  },
-  {
-    id: 2,
-    designNumber: "D002",
-    orderDate: "2023-10-02",
-    deliveryDate: "2023-10-06",
-    status: "Completed",
-    fabricator: "XYZ Garments",
-    isSampleGiven: false,
-    materialDetails: {
-      clothName: "Linen Blend",
-      totalMeter: 60,
-      price: 4800,
-    },
-    shirtDetails: {
-      designName: "Casual Linen Shirt",
-      average: 1.4,
-      fabrication: 200,
-      expense: 90,
-      costing: 400,
-    },
-  },
-  {
-    id: 3,
-    designNumber: "D003",
-    orderDate: "2023-10-03",
-    deliveryDate: "2023-10-07",
-    status: "Bestseller",
-    fabricator: "Sunrise Fabrics",
-    isSampleGiven: true,
-    materialDetails: {
-      clothName: "Egyptian Cotton",
-      totalMeter: 100,
-      price: 9500,
-    },
-    shirtDetails: {
-      designName: "Premium Formal Shirt",
-      average: 1.1,
-      fabrication: 220,
-      expense: 120,
-      costing: 480,
-    },
-  },
-  {
-    id: 4,
-    designNumber: "D004",
-    orderDate: "2023-10-04",
-    deliveryDate: "2023-10-08",
-    status: "Reordered",
-    fabricator: "Elegant Stitchers",
-    isSampleGiven: false,
-    materialDetails: {
-      clothName: "Oxford Cotton",
-      totalMeter: 80,
-      price: 6200,
-    },
-    shirtDetails: {
-      designName: "Oxford Blue Shirt",
-      average: 1.3,
-      fabrication: 180,
-      expense: 100,
-      costing: 420,
-    },
-  },
-];
+import { AddJobOrderForm } from "@/components/addJobOrder";
+import ItemJobSlipCard from "@/components/cards/ItemJobSlip";
+import { FilterJobOrder } from "@/components/filterJobOrder";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useProdManager } from "@/context/ProdManagerContext";
+import { useGlobalUser } from "@/context/UserContext";
+import { useParams } from "next/navigation";
+import React, { useState, useMemo } from "react";
+import useSWR from "swr";
 
+/* ----------------------------- 🧠 SWR Fetcher ----------------------------- */
+const fetcher = async (url) => {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch: ${url}`);
+  return res.json();
+};
 
 export default function ItemDashboardPage() {
-  const params= useParams();
-  const {itemId}=params;
-  const {managerId}=params;
-  const [searchTerm, setSearchTerm] =useState("");
-  const [showType,setShowType]=useState("all");
+  const params = useParams();
+  const { itemId } = params;
+  const { currentUser } = useGlobalUser();
+  const { designs } = useProdManager();
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showType, setShowType] = useState("all");
+
+  /* ----------------------------- 💾 Fetch Data ----------------------------- */
+  const {
+    data: jobSlips = [],
+    error,
+    isLoading,
+    mutate,
+  } = useSWR(
+    currentUser?.id && itemId
+      ? `/api/jobOrder?managerId=${currentUser.id}&designId=${itemId}`
+      : null,
+    fetcher,
+    {
+      revalidateOnFocus: true, // refresh when tab is refocused
+      dedupingInterval: 60 * 1000, // no duplicate requests within 1 minute
+    }
+  );
+
+  const loading = isLoading && !jobSlips?.length;
+
+  /* ----------------------------- 🔍 Filter + Search ----------------------------- */
+  const filteredJobSlips = useMemo(() => {
+    return (jobSlips || []).filter((item) => {
+      const matchesStatus =
+        showType === "all"
+          ? true
+          : showType === "pending"
+          ? item.status === "Pending"
+          : item.status === "Completed";
+
+      const matchesSearch = item.jobSlipNumber
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+      return matchesStatus && matchesSearch;
+    });
+  }, [jobSlips, showType, searchTerm]);
+
+  /* ----------------------------- 🚀 Add Job Callback ----------------------------- */
+  const handleAddSuccess = () => {
+    mutate();
+  };
+
+  /* ----------------------------- 🖥️ Render ----------------------------- */
+  if (!currentUser)
+    return <div className="text-center text-gray-500">Loading user...</div>;
+
   return (
-    <div>
-      {/* <Navbar2/> */}
-      <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="font-bold text-3xl break-words">{items.find((i)=>i.id==itemId).shirtDetails.designName}</h2>
+        <h2 className="font-bold text-3xl break-words">
+          {jobSlips?.[0]?.designName ||
+            designs.find((d) => d.id === itemId)?.name ||
+            "Item Dashboard"}
+        </h2>
+
+        {/* Search Input */}
         <div className="relative w-full sm:w-80">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -134,69 +109,72 @@ export default function ItemDashboardPage() {
           />
         </div>
 
+        {/* Add & Filter Buttons */}
         <div className="flex flex-row gap-3 flex-wrap justify-center sm:justify-end">
-          <AddJobOrderForm designId={itemId} managerId={managerId}/>
-          <FilterJobOrder/>
+          <AddJobOrderForm
+            designId={itemId}
+            managerId={currentUser.id}
+            onSuccess={handleAddSuccess}
+          />
+          <FilterJobOrder />
         </div>
-
-        
       </div>
+
+      {/* Tabs Section */}
       <Card className="shadow-md p-4 w-full">
         <CardHeader className="p-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle className="text-lg font-semibold">
-              Job Slips
-            </CardTitle>
+            <CardTitle className="text-lg font-semibold">Job Slips</CardTitle>
           </div>
         </CardHeader>
-        <CardContent className={'flex flex-row gap-4'}>
+        <CardContent className="flex flex-row gap-4">
           <div className="w-full flex justify-center sm:justify-start">
-          <Tabs
-            defaultValue="all"
-            className="w-full sm:w-auto rounded-md p-1"
-          >
-            <TabsList className="flex flex-row justify-around w-full sm:w-auto">
-              <TabsTrigger value="all"
-                onClick={()=>setShowType("all")}
-              >
-                All
-              </TabsTrigger>
+            <Tabs defaultValue="all" className="w-full sm:w-auto rounded-md p-1">
+              <TabsList className="flex flex-row justify-around w-full sm:w-auto">
+                <TabsTrigger value="all" onClick={() => setShowType("all")}>
+                  All
+                </TabsTrigger>
                 <TabsTrigger
                   value="pending"
-                  onClick={()=>setShowType("pending")}
+                  onClick={() => setShowType("pending")}
                 >
                   Pending
                 </TabsTrigger>
                 <TabsTrigger
                   value="completed"
-                  onClick={()=>setShowType("completed")}
+                  onClick={() => setShowType("completed")}
                 >
                   Completed
                 </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
+              </TabsList>
+            </Tabs>
+          </div>
         </CardContent>
       </Card>
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4  gap-4'>
-        {items.filter((item)=>{
-          if(showType==="all"){
-            return item;
-          }
-          if(showType==="pending"){
-            return item.status==="Pending";
-          }
-          if(showType==="completed"){
-            return item.status==="Completed";
-          }
 
-        }).map((item)=>(
-          <ItemJobSlipCard key={item.id} jobSlip={item} />
-        ))}
+      {/* Loading + Error States */}
+      {loading && (
+        <p className="text-center text-gray-500 animate-pulse">Loading...</p>
+      )}
+      {error && (
+        <p className="text-center text-red-500">Failed to load job slips.</p>
+      )}
+
+      {/* Job Slip Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {filteredJobSlips.length > 0 ? (
+          filteredJobSlips.map((item) => (
+            <ItemJobSlipCard
+              key={item.id || item.jobSlipNumber}
+              jobSlip={item}
+            />
+          ))
+        ) : !loading ? (
+          <p className="text-center col-span-full text-gray-500">
+            No Job Slips Found
+          </p>
+        ) : null}
       </div>
-
     </div>
-    </div>
-  )
+  );
 }

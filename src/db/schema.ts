@@ -4,6 +4,7 @@ import { boolean, date, index, integer, jsonb, numeric, pgEnum, pgTable, serial,
 
 export const roleEnum = pgEnum("role", ["Manager", "Admin","Employee"]);
 export const saleOrderStatus= pgEnum("status",["Dispatched","Pending"]);
+export const jobSlipStatus= pgEnum("Job_slip_status",["Pending","Completed"]);
 
 export const users= pgTable("users", {
   id: uuid("id").default(sql`gen_random_uuid()`).primaryKey(),
@@ -149,6 +150,7 @@ export const jobOrder= pgTable("job_order",{
   costing:numeric("costing").default("0.0"),
   isBestSeller:boolean("is_best_seller").default(false),
   expenses: jsonb("expenses").$type<{ expenseId: number; amount: number }[]>().default(sql`'[]'::jsonb`),
+  status: jobSlipStatus("status").default("Pending")
 
 },(t)=>[
   index("fabricator_wise_index").on(t.fabricatorId),
@@ -177,7 +179,8 @@ export const purchaseOrder=pgTable("purchase_order",{
   quantity:numeric("quantity"),
   dueDate:date("due_date").defaultNow(),
   designId:uuid("design_id").references(()=>designs.id),
-  fabricatorId:uuid("fabricator_id").references(()=>fabricators.id)
+  fabricatorId:uuid("fabricator_id").references(()=>fabricators.id),
+  status: jobSlipStatus("status").default("Pending")
 },(t)=>[
   uniqueIndex("po_number_index").on(t.POnumber),
   index("agent_wise_index").on(t.agentId),

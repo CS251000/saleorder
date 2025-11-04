@@ -2,16 +2,13 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import { Input } from "../ui/input";
+import { useProdManager } from "@/context/ProdManagerContext";
 
-const cloths = [
-  { id: 1, name: "Cloth 1", total: 100, dispatched: 80, pending: 20 },
-  { id: 2, name: "Cloth 2", total: 200, dispatched: 150, pending: 50 },
-  { id: 3, name: "Cloth 3", total: 300, dispatched: 250, pending: 50 },
-  { id: 4, name: "Cloth 4", total: 400, dispatched: 350, pending: 50 },
-];
 
 export default function ClothWiseDetailsTable() {
   const [searchTerm, setSearchTerm] = useState("");
+  const {cloths,loadingCloths}= useProdManager();
+  cloths.sort((a,b)=>b.pending-a.pending);
 
   const filteredClothes = cloths.filter((cloth) =>
     cloth.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -72,7 +69,7 @@ export default function ClothWiseDetailsTable() {
                   colSpan={4}
                   className="px-4 py-6 text-center text-lg text-gray-500 border"
                 >
-                  No items found.
+                  {loadingCloths?"Loading...":"No cloths found"}
                 </td>
               </tr>
             ) : (
