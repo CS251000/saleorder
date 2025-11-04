@@ -60,44 +60,42 @@ export function AddPurchaseOrderForm({ clothId, agentId }) {
   const {
     // Fabricators
     fabricators,
-    loadingFabricators,
     addFabricator,
     // Cloths
     cloths,
-    loadingCloths,
     addCloth,
     // Designs
     designs,
-    loadingDesigns,
     addDesign,
     // Mills
     mills,
-    loadingMills,
     addMill,
     // Cloth Buy Agents
     clothBuyAgents,
-    loadingAgents,
     addClothBuyAgent,
   } = useProdManager();
 
-  const [form, setForm] = useState({
-    POnumber: "",
-    date: new Date(),
-    agentId: null,
-    agentName: "",
-    millId: null,
-    millName: "",
-    clothId: null,
-    clothName: "",
-    designId: null,
-    designName: "",
-    fabricatorId: null,
-    fabricatorName: "",
-    purchaseRate: "",
-    quantity: "",
-    dueDate: null,
-    managerId:currentUser.id
-  });
+  const initialFormState = (currentUser) => ({
+  POnumber: "",
+  date: new Date(),
+  agentId: null,
+  agentName: "",
+  millId: null,
+  millName: "",
+  clothId: null,
+  clothName: "",
+  designId: null,
+  designName: "",
+  fabricatorId: null,
+  fabricatorName: "",
+  purchaseRate: "",
+  quantity: "",
+  dueDate: null,
+  managerId: currentUser?.id || "",
+});
+
+
+  const [form, setForm] = useState(initialFormState);
 
   useEffect(() => {
     if (agentId) {
@@ -181,7 +179,7 @@ const handleSubmit = async (e) => {
 
     const data = await res.json();
     toast.success("Purchase order created successfully");
-    setForm({});
+    setForm(initialFormState);
 
     } catch (error) {
       console.error("❌ Error submitting form:", error);
@@ -190,6 +188,10 @@ const handleSubmit = async (e) => {
       setSaving(false);
     }
   };
+
+  const handleCancel=()=>{
+    setForm(initialFormState);
+  }
 
   return (
     <Dialog>
@@ -763,7 +765,7 @@ const handleSubmit = async (e) => {
             {/* Footer */}
             <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4">
               <DialogClose asChild>
-                <Button variant="outline" className="w-full sm:w-auto">
+                <Button variant="outline" className="w-full sm:w-auto" onClick={handleCancel}>
                   Cancel
                 </Button>
               </DialogClose>

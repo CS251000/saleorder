@@ -47,6 +47,8 @@ import { Separator } from "./ui/separator";
 import { ScrollArea } from "./ui/scroll-area";
 import { Toggle } from "./ui/toggle";
 import { useProdManager } from "@/context/ProdManagerContext";
+import { useGlobalUser } from "@/context/UserContext";
+import toast from "react-hot-toast";
 
 const purchaseOrders = [
   {
@@ -89,13 +91,8 @@ const purchaseOrders = [
 ];
 
 export function AddJobOrderForm({ fabricatorId, designId }) {
-  const [date, setDate] = useState(null);
-  const [dueDate, setDueDate] = useState(null);
-  const [fabricator, setFabricator] = useState("");
   const [fabOpen, setFabOpen] = useState(false);
-  const [clothName, setClothName] = useState("");
   const [clothOpen, setClothOpen] = useState(false);
-  const [designName, setDesignName] = useState("");
   const [designOpen, setDesignOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [expenseComboOpen, setExpenseComboOpen] = useState(false);
@@ -103,13 +100,46 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
   const [expenseToAdd, setExpenseToAdd] = useState("");
   const [poOpen, setPoOpen] = useState(false);
   const [selectedPO, setSelectedPO] = useState(null);
-  const [totalMeter, setTotalMeter] = useState("");
-  const [totalPrice, setTotalPrice] = useState("");
 
-  const [fabSearchTerm,setFabSearchTerm]= useState("");
+  const [expenses, setExpenses] = useState([]);
+  const [expenseSaving,setExpenseSaving]= useState(false);
 
-  const { fabricators, addFabricator, expenses, designs, cloths,loading } =
-    useProdManager();
+  const [saving, setSaving] = useState(false);
+
+  const { currentUser } = useGlobalUser();
+  const initialFormState = {
+  jobSlipNumber: "",
+  managerId: currentUser.id,
+  orderDate: new Date(),
+  fabricatorId: null,
+  fabricatorName: "",
+  dueDate: null,
+  isSampleGiven: false,
+  clothId: null,
+  clothName: "",
+  totalMeter: 0.0,
+  price: 0.0,
+  designId: null,
+  designName: "",
+  average: 0.0,
+  fabrication: 0.0,
+  costing: 0.0,
+  isBestSeller: false,
+};
+
+  const [form, setForm] = useState(initialFormState);
+
+  const {
+    // Fabricators
+    fabricators,
+    addFabricator,
+    // Cloths
+    cloths,
+    addCloth,
+    // Designs
+    designs,
+    addDesign,
+  } = useProdManager();
 
   const handleAddExpense = (e) => {
     const val = e.target.value;
@@ -134,6 +164,50 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
     setSelectedExpenses((prev) => prev.filter((_, i) => i !== index));
   };
 
+  async function fetchExpenses() {
+    try {
+      const res = await fetch(`/api/expenses?managerId=${currentUser.id}`);
+      const data = await res.json();
+      const formatted = data.map((exp) => ({
+        value: exp.id,
+        label: exp.expenseName,
+      }));
+      setExpenses(formatted);
+    } catch (err) {
+      console.error("Failed to load expenses:", err);
+    }
+  }
+
+  async function handleAddNewExpense(name) {
+    try {
+      setExpenseSaving(true);
+      const res = await fetch("/api/expenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expenseName:name, managerId: currentUser.id }),
+      });
+      const newExpense = await res.json();
+      const formatted = { value: newExpense.id, label: newExpense.expenseName };
+      setExpenses((prev) => [...prev, formatted]);
+      setExpenseToAdd(formatted.value);
+      setExpenseComboOpen(false);
+    } catch (err) {
+      console.error("Error adding expense:", err);
+    }finally{
+      setExpenseSaving(false);
+    }
+  }
+
+  const handleCancel=()=>{
+    setForm({...initialFormState,managerId:currentUser.id});
+    setSelectedExpenses([]);
+  }
+  
+
+
+  
+
+
   // ✅ Preselect fabricator if ID is passed via props
   useEffect(() => {
     if (fabricatorId) {
@@ -146,6 +220,92 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
     }
   }, [fabricatorId, designId]);
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+
+      let {
+        jobSlipNumber,
+        managerId,
+        orderDate,
+        fabricatorId,
+        fabricatorName,
+        dueDate,
+        isSampleGiven,
+        clothId,
+        clothName,
+        totalMeter,
+        price,
+        designId,
+        designName,
+        average,
+        fabrication,
+        costing,
+        isBestSeller,
+      } = form;
+
+      if (!fabricatorId && fabricatorName) {
+        const newFab = await addFabricator(fabricatorName);
+        fabricatorId = newFab?.id;
+      }
+
+      if (!clothId && clothName) {
+        const newCloth = await addCloth(clothName);
+        clothId = newCloth?.id;
+      }
+
+      if (!designId && designName) {
+        const newDesign = await addDesign(designName);
+        designId = newDesign?.id;
+      }
+
+      // 🏗️ Construct final object for submission
+      const finalJobSlip = {
+        jobSlipNumber,
+        managerId,
+        orderDate,
+        fabricatorId,
+        dueDate,
+        isSampleGiven,
+        clothId,
+        totalMeter: parseFloat(totalMeter) || 0,
+        price: parseFloat(price) || 0,
+        designId,
+        average: parseFloat(average) || 0,
+        fabrication: parseFloat(fabrication) || 0,
+        costing: parseFloat(costing) || 0,
+        isBestSeller,
+        expenses:selectedExpenses
+      };
+      
+
+      // 📨 Send to API
+      const res = await fetch("/api/jobOrder", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(finalJobSlip),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Server error: ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      toast.success("Job Slip created successfully ✅");
+      setForm(initialFormState);
+      setSelectedExpenses([]);
+    } catch (error) {
+      console.error("❌ Error submitting job slip:", error);
+      toast.error("Error creating job slip");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -157,7 +317,7 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
 
       <DialogContent className="sm:max-w-[650px] w-[95%]">
         <ScrollArea className="h-[85vh] pr-4">
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle>Add Job Order</DialogTitle>
               <DialogDescription>
@@ -178,6 +338,12 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                     placeholder="Enter job slip..."
                     // defaultValue="JobSlip123"
                     className="w-full"
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        jobSlipNumber: e.target.value,
+                      })
+                    }
                   />
                 </div>
 
@@ -189,18 +355,22 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                       <Button
                         variant="outline"
                         className={`w-full justify-start text-left font-normal ${
-                          !date ? "text-muted-foreground" : ""
+                          !form.orderDate ? "text-muted-foreground" : ""
                         }`}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "PPP") : <span>Pick a date</span>}
+                        {form.orderDate ? (
+                          format(form.orderDate, "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={date}
-                        onSelect={setDate}
+                        selected={form.orderDate}
+                        onSelect={(v) => setForm({ ...form, orderDate: v })}
                         initialFocus
                       />
                     </PopoverContent>
@@ -218,8 +388,8 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                         aria-expanded={fabOpen}
                         className="w-full justify-between"
                       >
-                        {fabricator ? (
-                          fabricator
+                        {form.fabricatorName ? (
+                          form.fabricatorName
                         ) : (
                           <span className="text-muted-foreground">
                             Select...
@@ -228,36 +398,34 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                         <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-
                     <PopoverContent className="w-full p-0">
                       <Command>
-                        <CommandInput placeholder="Search fabricator..." onValueChange={(t)=>setFabSearchTerm(t)}/>
+                        <CommandInput
+                          placeholder="Search fabricator..."
+                          onValueChange={(v) =>
+                            setForm({
+                              ...form,
+                              fabricatorName: v,
+                            })
+                          }
+                        />
                         <CommandList>
                           <CommandEmpty>
                             <div className="flex flex-col items-center gap-2 py-3">
                               <p className="text-sm text-muted-foreground">
                                 No fabricator found.
                               </p>
-                              {loading?<Button variant={"outline"}
-                              size="sm" disabled>
-                                Adding
-                                </Button>:<Button
+                              <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={async () => {
-                                  if (!fabSearchTerm) return;
-                                  if(!fabSearchTerm.trim())return;
-                                  await addFabricator(fabSearchTerm);
-                                  setFabricator(fabSearchTerm);
+                                  if (!form.fabricatorName) return;
                                   setFabOpen(false);
                                 }}
                               >
                                 <CirclePlus className="w-4 h-4 mr-1" />
-                                Add “
-                                {fabSearchTerm}
-                                ”
-                              </Button>}
-                              
+                                Add “{form.fabricatorName}”
+                              </Button>
                             </div>
                           </CommandEmpty>
                           <CommandGroup>
@@ -265,18 +433,18 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                               <CommandItem
                                 key={f.id}
                                 value={f.name}
-                                onSelect={(currentValue) => {
-                                  setFabricator(
-                                    currentValue === fabricator
-                                      ? ""
-                                      : currentValue
-                                  );
+                                onSelect={() => {
+                                  setForm({
+                                    ...form,
+                                    fabricatorName: f.name,
+                                    fabricatorId: f.id,
+                                  });
                                   setFabOpen(false);
                                 }}
                               >
                                 <CheckIcon
                                   className={`mr-2 h-4 w-4 ${
-                                    fabricator === f.name
+                                    form.fabricatorName === f.name
                                       ? "opacity-100"
                                       : "opacity-0"
                                   }`}
@@ -299,12 +467,12 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                       <Button
                         variant="outline"
                         className={`w-full justify-start text-left font-normal ${
-                          !dueDate ? "text-muted-foreground" : ""
+                          !form.dueDate ? "text-muted-foreground" : ""
                         }`}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dueDate ? (
-                          format(dueDate, "PPP")
+                        {form.dueDate ? (
+                          format(form.dueDate, "PPP")
                         ) : (
                           <span>Pick a date</span>
                         )}
@@ -313,8 +481,8 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={dueDate}
-                        onSelect={setDueDate}
+                        selected={form.dueDate}
+                        onSelect={(v) => setForm({ ...form, dueDate: v })}
                         initialFocus
                       />
                     </PopoverContent>
@@ -322,6 +490,10 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                 </div>
 
                 <Toggle
+                  pressed={form.isSampleGiven}
+                  onPressedChange={(p) =>
+                    setForm({ ...form, isSampleGiven: p })
+                  }
                   className={`cursor-pointer
     border border-slate-300 transition-all
     hover:bg-blue-50 hover:text-blue-600
@@ -362,8 +534,8 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                               aria-expanded={clothOpen}
                               className="w-full justify-between"
                             >
-                              {clothName ? (
-                                clothName
+                              {form.clothName ? (
+                                form.clothName
                               ) : (
                                 <span className="text-muted-foreground">
                                   Select...
@@ -372,30 +544,54 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                               <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </PopoverTrigger>
-
                           <PopoverContent className="w-full p-0">
                             <Command>
-                              <CommandInput placeholder="Search cloth name..." />
+                              <CommandInput
+                                placeholder="Search cloth..."
+                                onValueChange={(v) =>
+                                  setForm({
+                                    ...form,
+                                    clothName: v,
+                                  })
+                                }
+                              />
                               <CommandList>
-                                <CommandEmpty>No cloth found.</CommandEmpty>
+                                <CommandEmpty>
+                                  <div className="flex flex-col items-center gap-2 py-3">
+                                    <p className="text-sm text-muted-foreground">
+                                      No cloth found.
+                                    </p>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={async () => {
+                                        if (!form.clothName) return;
+
+                                        setClothOpen(false);
+                                      }}
+                                    >
+                                      <CirclePlus className="w-4 h-4 mr-1" />
+                                      Add “{form.clothName}”
+                                    </Button>
+                                  </div>
+                                </CommandEmpty>
                                 <CommandGroup>
                                   {cloths.map((c) => (
                                     <CommandItem
                                       key={c.id}
                                       value={c.name}
-                                      onSelect={(currentValue) => {
-                                        setClothName(
-                                          currentValue === clothName
-                                            ? ""
-                                            : currentValue
-                                        );
+                                      onSelect={() => {
+                                        setForm({
+                                          ...form,
+                                          clothName: c.name,
+                                          clothId: c.id,
+                                        });
                                         setClothOpen(false);
-                                        setSelectedPO(null); // reset PO when cloth changes
                                       }}
                                     >
                                       <CheckIcon
                                         className={`mr-2 h-4 w-4 ${
-                                          clothName === c.name
+                                          form.clothName === c.name
                                             ? "opacity-100"
                                             : "opacity-0"
                                         }`}
@@ -419,9 +615,9 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                               variant="outline"
                               role="combobox"
                               aria-expanded={poOpen}
-                              disabled={!clothName} // disable until cloth selected
+                              disabled={!form.clothName} // disable until cloth selected
                               className={`w-full justify-between ${
-                                !clothName
+                                !form.clothName
                                   ? "cursor-not-allowed opacity-60"
                                   : ""
                               }`}
@@ -438,7 +634,7 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                                 </div>
                               ) : (
                                 <span className="text-muted-foreground">
-                                  {clothName
+                                  {form.clothName
                                     ? "Select purchase order..."
                                     : "Select cloth first"}
                                 </span>
@@ -456,7 +652,9 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                                 </CommandEmpty>
                                 <CommandGroup>
                                   {purchaseOrders
-                                    .filter((po) => po.clothName === clothName)
+                                    .filter(
+                                      (po) => po.clothName === form.clothName
+                                    )
                                     .map((po) => (
                                       <CommandItem
                                         key={po.id}
@@ -497,8 +695,10 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                           name="totmeter"
                           placeholder="Enter total meter..."
                           className="w-full"
-                          value={totalMeter}
-                          onChange={(e) => setTotalMeter(e.target.value)}
+                          value={form.totalMeter}
+                          onChange={(e) =>
+                            setForm({ ...form, totalMeter: e.target.value })
+                          }
                         />
                       </div>
 
@@ -510,8 +710,10 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                           name="totprice"
                           placeholder="Enter price..."
                           className="w-full"
-                          value={totalPrice}
-                          onChange={(e) => setTotalPrice(e.target.value)}
+                          value={form.price}
+                          onChange={(e) =>
+                            setForm({ ...form, price: e.target.value })
+                          }
                         />
                       </div>
                     </div>
@@ -530,7 +732,7 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {/* design Name */}
                       <div className="flex flex-col space-y-2">
-                        <Label htmlFor="designname">Design Name</Label>
+                        <Label htmlFor="designname">Design</Label>
                         <Popover open={designOpen} onOpenChange={setDesignOpen}>
                           <PopoverTrigger asChild>
                             <Button
@@ -539,8 +741,8 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                               aria-expanded={designOpen}
                               className="w-full justify-between"
                             >
-                              {designName ? (
-                                designName
+                              {form.designName ? (
+                                form.designName
                               ) : (
                                 <span className="text-muted-foreground">
                                   Select...
@@ -549,29 +751,54 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                               <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </PopoverTrigger>
-
                           <PopoverContent className="w-full p-0">
                             <Command>
-                              <CommandInput placeholder="Search cloth name..." />
+                              <CommandInput
+                                placeholder="Search design..."
+                                onValueChange={(v) =>
+                                  setForm({
+                                    ...form,
+                                    designName: v,
+                                  })
+                                }
+                              />
                               <CommandList>
-                                <CommandEmpty>No design found.</CommandEmpty>
+                                <CommandEmpty>
+                                  <div className="flex flex-col items-center gap-2 py-3">
+                                    <p className="text-sm text-muted-foreground">
+                                      No design found.
+                                    </p>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={async () => {
+                                        if (!form.designName) return;
+
+                                        setDesignOpen(false);
+                                      }}
+                                    >
+                                      <CirclePlus className="w-4 h-4 mr-1" />
+                                      Add “{form.designName}”
+                                    </Button>
+                                  </div>
+                                </CommandEmpty>
                                 <CommandGroup>
                                   {designs.map((c) => (
                                     <CommandItem
                                       key={c.id}
                                       value={c.name}
-                                      onSelect={(currentValue) => {
-                                        setDesignName(
-                                          currentValue === designName
-                                            ? ""
-                                            : currentValue
-                                        );
+                                      onSelect={() => {
+                                        setForm({
+                                          ...form,
+                                          designName: c.name,
+                                          designId: c.id,
+                                        });
                                         setDesignOpen(false);
                                       }}
                                     >
                                       <CheckIcon
                                         className={`mr-2 h-4 w-4 ${
-                                          designName === c.name
+                                          form.designName === c.name
                                             ? "opacity-100"
                                             : "opacity-0"
                                         }`}
@@ -586,30 +813,48 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                         </Popover>
                       </div>
 
+                      {/* average */}
+
                       <div className="flex flex-col space-y-2">
                         <Label htmlFor="average">Average</Label>
                         <Input
                           id="average"
                           name="average"
+                          value={form.average}
+                          onChange={(e) =>
+                            setForm({ ...form, average: e.target.value })
+                          }
                           placeholder="Enter average..."
                           className="w-full"
                         />
                       </div>
+                      {/* fabrication */}
                       <div className="flex flex-col space-y-2">
                         <Label htmlFor="fabrication">Fabrication</Label>
                         <Input
                           id="fabrication"
                           name="fabrication"
+                          value={form.fabrication}
+                          onChange={(e) =>
+                            setForm({ ...form, fabrication: e.target.value })
+                          }
                           placeholder="Enter fabrication..."
                           className="w-full"
                         />
                       </div>
-                      {/* EXPENSES */}
+
+                      {/* --- EXPENSES SECTION --- */}
                       <div className="flex flex-col space-y-2">
                         <Label>Expenses</Label>
+
                         <Dialog
                           open={expenseOpen}
-                          onOpenChange={setExpenseOpen}
+                          onOpenChange={(isOpen) => {
+                            setExpenseOpen(isOpen);
+                            if (isOpen && expenses.length === 0) {
+                              fetchExpenses(); 
+                            }
+                          }}
                         >
                           <DialogTrigger asChild>
                             <Button
@@ -630,7 +875,7 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                             <Separator className="my-2" />
 
                             <ScrollArea className="max-h-[300px] pr-2">
-                              {/* Replace the select with this combobox */}
+                              {/* Combobox + Add Button */}
                               <div className="flex items-center gap-2 mb-4 border-2 p-2 rounded-lg">
                                 <Label
                                   htmlFor="expense-select"
@@ -639,6 +884,7 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                                   Add
                                 </Label>
 
+                                {/* ✅ Expense Combobox */}
                                 <div className="flex-1">
                                   <Popover
                                     open={expenseComboOpen}
@@ -664,10 +910,33 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
 
                                     <PopoverContent className="w-full p-0">
                                       <Command>
-                                        <CommandInput placeholder="Search expenses..." />
+                                        <CommandInput
+                                          placeholder="Search or add expense..."
+                                          value={expenseToAdd}
+                                          onValueChange={setExpenseToAdd}
+                                        />
                                         <CommandList>
                                           <CommandEmpty>
-                                            No expense found.
+                                            <div className="flex flex-col items-center gap-2 py-3">
+                                              <p className="text-sm text-muted-foreground">
+                                                No expense found.
+                                              </p>
+                                              {expenseSaving?<Button variant={"outline"} size="sm" disabled>Adding...</Button>:
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={async () => {
+                                                  if (!expenseToAdd.trim())
+                                                    return;
+                                                  await handleAddNewExpense(
+                                                    expenseToAdd.trim()
+                                                  );
+                                                }}
+                                              >
+                                                <CirclePlus className="w-4 h-4 mr-1" />
+                                                Add “{expenseToAdd}”
+                                              </Button>}
+                                            </div>
                                           </CommandEmpty>
 
                                           <CommandGroup>
@@ -683,14 +952,13 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                                                   key={ex.value}
                                                   value={ex.value}
                                                   onSelect={(currentValue) => {
-                                                    // toggle selection in the combobox (but not adding to selectedExpenses yet)
                                                     setExpenseToAdd(
                                                       currentValue ===
                                                         expenseToAdd
                                                         ? ""
                                                         : currentValue
                                                     );
-                                                    setExpenseComboOpen(false); // close popover after pick
+                                                    setExpenseComboOpen(false);
                                                   }}
                                                 >
                                                   <CheckIcon
@@ -723,7 +991,7 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                                 </Button>
                               </div>
 
-                              {/* List of added expenses with amount inputs */}
+                              {/* ✅ List of added expenses */}
                               {selectedExpenses.length === 0 && (
                                 <p className="text-sm text-muted-foreground">
                                   No expenses added yet. Select one above to
@@ -772,22 +1040,36 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
                               <DialogClose asChild>
                                 <Button variant="outline">Cancel</Button>
                               </DialogClose>
-                              <Button>Save</Button>
+                              <Button onClick={() => setExpenseOpen(false)}>
+                                Save
+                              </Button>
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
                       </div>
+
+                      {/* costing */}
                       <div className="flex flex-col space-y-2">
                         <Label htmlFor="costing">Costing</Label>
                         <Input
                           id="costing"
                           name="costing"
+                          value={form.costing}
+                          onChange={(e) =>
+                            setForm({ ...form, costing: e.target.value })
+                          }
                           placeholder="Enter costing..."
                           className="w-full"
                         />
                       </div>
                     </div>
-                    <Toggle className=" data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-yellow-500 data-[state=on]:*:[svg]:stroke-yellow-500 cursor-pointer mt-2">
+                    <Toggle
+                      pressed={form.isBestSeller}
+                      onPressedChange={(p) =>
+                        setForm({ ...form, isBestSeller: p })
+                      }
+                      className=" data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-yellow-500 data-[state=on]:*:[svg]:stroke-yellow-500 cursor-pointer mt-2"
+                    >
                       <StarIcon />
                       Bestseller
                     </Toggle>
@@ -799,13 +1081,19 @@ export function AddJobOrderForm({ fabricatorId, designId }) {
             {/* Footer Buttons */}
             <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 sm:gap-2">
               <DialogClose asChild>
-                <Button variant="outline" className="w-full sm:w-auto">
+                <Button variant="outline" className="w-full sm:w-auto" onClick={handleCancel}>
                   Cancel
                 </Button>
               </DialogClose>
-              <Button type="submit" className="w-full sm:w-auto">
-                Save changes
-              </Button>
+              {saving ? (
+                <Button type="submit" className="w-full sm:w-auto" disabled>
+                  Saving...
+                </Button>
+              ) : (
+                <Button type="submit" className="w-full sm:w-auto">
+                  Save changes
+                </Button>
+              )}
             </DialogFooter>
           </form>
         </ScrollArea>

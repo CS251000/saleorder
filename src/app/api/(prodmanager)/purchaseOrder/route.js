@@ -37,8 +37,8 @@ export async function POST(req) {
       fabricatorId: fabricatorId || null,
       purchaseRate: purchaseRate ? Number(purchaseRate) : 0.0,
       quantity: quantity ? Number(quantity) : 0,
-      dueDate: (dueDate ? new Date(dueDate) : new Date()).toISOString(),
-      managerId: managerId || null,
+      dueDate: (dueDate ? new Date(dueDate).toISOString() : null),
+      managerId: managerId ,
     };
 
     const inserted = await db.insert(purchaseOrder).values(newPO).returning();

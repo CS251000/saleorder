@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, date, index, integer, numeric, pgEnum, pgTable, serial, text, unique, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, date, index, integer, jsonb, numeric, pgEnum, pgTable, serial, text, unique, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 
 export const roleEnum = pgEnum("role", ["Manager", "Admin","Employee"]);
@@ -147,8 +147,8 @@ export const jobOrder= pgTable("job_order",{
   average:numeric("average").default("0.0"),
   fabrication:numeric("fabrication").default("0.0"),
   costing:numeric("costing").default("0.0"),
-  isBestSeller:boolean("is_best_seller").default(false)
-  // expenses
+  isBestSeller:boolean("is_best_seller").default(false),
+  expenses: jsonb("expenses").$type<{ expenseId: number; amount: number }[]>().default(sql`'[]'::jsonb`),
 
 },(t)=>[
   index("fabricator_wise_index").on(t.fabricatorId),
@@ -157,13 +157,9 @@ export const jobOrder= pgTable("job_order",{
 ]);
 
 export const jobOrderExpenses = pgTable("job_order_expenses", {
-  id: serial("id").primaryKey(),
-  jobSlipNumber: varchar("job_slip_no")
-    .references(() => jobOrder.jobSlipNumber)
-    .notNull(),
+  id: uuid("id").default(sql`gen_random_uuid()`).primaryKey(),
   expenseName: varchar("expense_name").notNull(),
   managerId:uuid("manager_id").notNull().references(()=>users.id),
-  amount: numeric("amount").default("0.0").notNull(),
 },(t)=>[
   index("manager_job_order_expenses").on(t.managerId)
 ]);

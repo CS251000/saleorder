@@ -211,18 +211,6 @@ export const ProdManagerProvider = ({ children }) => {
     }
   }, [currentUser]);
 
-  /* ----------------------------- 🪄 Static options ----------------------------- */
-  const [expenses] = useState([
-    { value: "washing", label: "Washing" },
-    { value: "kadhai", label: "Kadhai" },
-    { value: "pasting", label: "Pasting" },
-    { value: "button", label: "Button" },
-    { value: "design", label: "Design" },
-    { value: "print", label: "Print" },
-    { value: "id", label: "ID" },
-    { value: "double-pocket", label: "Double Pocket" },
-    { value: "others", label: "Others" },
-  ]);
 
   /* ----------------------------- 🚀 Context value ----------------------------- */
   return (
@@ -258,8 +246,6 @@ export const ProdManagerProvider = ({ children }) => {
         getClothBuyAgents,
         addClothBuyAgent,
 
-        // Static
-        expenses,
       }}
     >
       {children}
