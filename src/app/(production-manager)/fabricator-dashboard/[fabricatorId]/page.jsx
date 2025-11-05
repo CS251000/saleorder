@@ -69,6 +69,32 @@ export default function FabricatorDashboardPage() {
     mutate();
   };
 
+   async function handleCompleteJobSlip(jobSlip) {
+    const confirmComplete = window.confirm(
+    `Are you sure you want to mark Job Slip ${jobSlip.jobSlipNumber} as Completed?`
+  );
+
+  if (!confirmComplete) return; // ❌ User cancelled — do nothing
+  try {
+    const res = await fetch(`/api/jobOrder`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jobSlipNumber: jobSlip.jobSlipNumber,
+        designId: jobSlip.designId,
+        fabricatorId: jobSlip.fabricatorId, }),
+    });
+
+    if (!res.ok) throw new Error("Failed to complete job slip");
+
+    // ✅ Refresh the SWR state
+    mutate();
+
+  } catch (error) {
+    console.error("Error completing job slip:", error);
+  }
+}
+
   /* ----------------------------- 🖥️ Render ----------------------------- */
   if (!currentUser)
     return <div className="text-center text-gray-500">Loading user...</div>;
@@ -164,7 +190,7 @@ export default function FabricatorDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {filteredJobSlips.length > 0 ? (
           filteredJobSlips.map((item) => (
-            <FabricatorJobSlipCard key={item.id || item.jobSlipNumber} jobSlip={item} />
+            <FabricatorJobSlipCard key={item.id || item.jobSlipNumber} jobSlip={item} onComplete={handleCompleteJobSlip} />
           ))
         ) : !loading ? (
           <p className="text-center col-span-full text-gray-500">

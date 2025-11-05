@@ -10,9 +10,9 @@ import {
 } from "../ui/card";
 import { Button } from "../ui/button";
 import JobSlipInfoDialog from "../jobSlipInfoDialog";
-import { Edit3, Info, Trash2 } from "lucide-react";
+import { CircleCheckBig, CircleDot, Info} from "lucide-react";
 
-export default function ItemJobSlipCard({ jobSlip }) {
+export default function ItemJobSlipCard({ jobSlip,onComplete }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -38,30 +38,31 @@ export default function ItemJobSlipCard({ jobSlip }) {
           <p>🚚 Delivery Date: {new Date(jobSlip.dueDate).toLocaleDateString()}</p>
         </CardContent>
 
-        <CardFooter className="flex justify-center items-center gap-3">
-          <Button
-            variant="destructive"
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-md shadow-sm transition-all"
-          >
-            <Trash2 className="w-4 h-4" />
-            Delete
-          </Button>
+        <CardFooter className="flex justify-between items-center gap-3">
 
           <Button
-            onClick={() => console.log("Edit clicked")}
-            className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded-md shadow-sm transition-all"
-          >
-            <Edit3 className="w-4 h-4" />
-            Edit
-          </Button>
-
-          <Button
+          size="sm"
             onClick={() => setOpen(true)}
-            className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-md shadow-sm transition-all"
+            className="flex items-center gap-2 cursor-pointer bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-md shadow-sm transition-all"
           >
             <Info className="w-4 h-4" />
             Info
           </Button>
+
+          {jobSlip.status=="Pending"?<Button size={"sm"} 
+          onClick={() => onComplete(jobSlip)}
+          >
+            <CircleDot className="w-4 h-4" />
+            Complete
+          </Button>:
+          <Button className={"bg-green-500 hover:bg-green-600"} size={"sm"}>
+            <CircleCheckBig className="w-4 h-4" />
+            Completed
+          </Button>
+          }
+
+          
+          
         </CardFooter>
       </Card>
 

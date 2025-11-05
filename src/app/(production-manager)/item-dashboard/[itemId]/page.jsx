@@ -70,6 +70,34 @@ export default function ItemDashboardPage() {
     mutate();
   };
 
+  async function handleCompleteJobSlip(jobSlip) {
+    const confirmComplete = window.confirm(
+    `Are you sure you want to mark Job Slip ${jobSlip.jobSlipNumber} as Completed?`
+  );
+
+  if (!confirmComplete) return; // ❌ User cancelled — do nothing
+  try {
+    const res = await fetch(`/api/jobOrder`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jobSlipNumber: jobSlip.jobSlipNumber,
+        designId: jobSlip.designId,
+        fabricatorId: jobSlip.fabricatorId, }),
+    });
+
+    if (!res.ok) throw new Error("Failed to complete job slip");
+
+    // ✅ Refresh the SWR state
+    mutate();
+
+  } catch (error) {
+    console.error("Error completing job slip:", error);
+  }
+}
+
+
+
   /* ----------------------------- 🖥️ Render ----------------------------- */
   if (!currentUser)
     return <div className="text-center text-gray-500">Loading user...</div>;
@@ -165,8 +193,9 @@ export default function ItemDashboardPage() {
         {filteredJobSlips.length > 0 ? (
           filteredJobSlips.map((item) => (
             <ItemJobSlipCard
-              key={item.id || item.jobSlipNumber}
+              key={item.jobSlipNumber}
               jobSlip={item}
+              onComplete={handleCompleteJobSlip}
             />
           ))
         ) : !loading ? (

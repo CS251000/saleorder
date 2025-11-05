@@ -161,6 +161,8 @@ export async function GET(req) {
       price:jobOrder.price,
       average:jobOrder.average,
       fabricatorName: fabricators.name,
+      fabricatorId:jobOrder.fabricatorId,
+      designId:jobOrder.designId,
       clothName: cloths.name,
       designName: designs.name,
     })
@@ -191,97 +193,72 @@ export async function GET(req) {
 export async function PUT(req) {
   try {
     const body = await req.json();
-    const { id, status } = body;
+    const { jobSlipNumber,designId,fabricatorId } = body;
 
-    if (!id || !status) {
+    if (!jobSlipNumber) {
       return NextResponse.json(
-        { error: "Missing required fields: id or status" },
+        { error: "Missing required field: jobSlipNumber" },
         { status: 400 }
       );
     }
 
-    // ✅ Use transaction to safely update both job order and related counters
-    const updatedJob = await db.transaction(async (tx) => {
-      // Fetch existing job order
-      const [existing] = await tx
-        .select()
-        .from(jobOrder)
-        .where(eq(jobOrder.id, id));
+    // ✅ Use transaction for safe multi-table update
+    const updatedSlip = await db.transaction(async (tx) => {
 
-      if (!existing) {
-        throw new Error("Job order not found");
-      }
-
-      // ✅ Update the job order status
+      // ✅ Update status to Completed
       const [updated] = await tx
         .update(jobOrder)
-        .set({ status })
-        .where(eq(jobOrder.id, id))
+        .set({ status: "Completed" })
+        .where(eq(jobOrder.jobSlipNumber, jobSlipNumber))
         .returning();
 
-      // ✅ If marked as completed → adjust related entities
-      if (status === "Completed") {
-        const updates = [];
+      // ✅ Adjust related entity counters
+      const updates = [];
 
-        if (existing.clothId) {
-          updates.push(
-            tx
-              .update(cloths)
-              .set({
-                pending: sql`GREATEST(COALESCE(${cloths.pending}, 1) - 1, 0)`,
-                dispatched: sql`COALESCE(${cloths.dispatched}, 0) + 1`,
-              })
-              .where(eq(cloths.id, existing.clothId))
-          );
-        }
 
-        if (existing.designId) {
-          updates.push(
-            tx
-              .update(designs)
-              .set({
-                pending: sql`GREATEST(COALESCE(${designs.pending}, 1) - 1, 0)`,
-                dispatched: sql`COALESCE(${designs.dispatched}, 0) + 1`,
-              })
-              .where(eq(designs.id, existing.designId))
-          );
-        }
-
-        if (existing.fabricatorId) {
-          updates.push(
-            tx
-              .update(fabricators)
-              .set({
-                pending: sql`GREATEST(COALESCE(${fabricators.pending}, 1) - 1, 0)`,
-                dispatched: sql`COALESCE(${fabricators.dispatched}, 0) + 1`,
-              })
-              .where(eq(fabricators.id, existing.fabricatorId))
-          );
-        }
-
-        if (updates.length > 0) {
-          await Promise.all(updates);
-        }
+      if (designId) {
+        updates.push(
+          tx
+            .update(designs)
+            .set({
+              pending: sql`GREATEST(COALESCE(${designs.pending}, 1) - 1, 0)`,
+              dispatched: sql`COALESCE(${designs.dispatched}, 0) + 1`,
+            })
+            .where(eq(designs.id,designId))
+        );
       }
+
+      if (fabricatorId) {
+        updates.push(
+          tx
+            .update(fabricators)
+            .set({
+              pending: sql`GREATEST(COALESCE(${fabricators.pending}, 1) - 1, 0)`,
+              dispatched: sql`COALESCE(${fabricators.dispatched}, 0) + 1`,
+            })
+            .where(eq(fabricators.id,fabricatorId))
+        );
+      }
+
+      if (updates.length > 0) await Promise.all(updates);
 
       return updated;
     });
 
     return NextResponse.json(
-      {
-        message: "✅ Job order status updated successfully",
-        data: updatedJob,
-      },
+      { message: "✅ Job slip completed successfully", data: updatedSlip },
       { status: 200 }
     );
+
   } catch (error) {
-    console.error("❌ Error updating job order:", error);
+    console.error("❌ Error completing job slip:", error);
     return NextResponse.json(
       { error: "Internal Server Error", details: error.message },
       { status: 500 }
     );
   }
 }
+
 
 export async function DELETE(req) {
   try {

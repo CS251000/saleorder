@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, UserPlus, Users, List } from "lucide-react";
+import {  UserPlus, Users } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -13,18 +13,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import toast, { Toaster } from "react-hot-toast";
-import { unstable_cache } from "next/cache";
 import ManagerDashboardEmployees from "./ManagerDashboardEmployees";
 import AddSaleOrderForm from "../addSaleOrder";
 import ManagerDashboardParties from "./ManagerDashboardParties";
 
-/**
- * ManagerDashboard - expects currUser prop from parent (Home)
- * currUser is the DB user object you store for the logged-in Clerk user.
- *
- * NOTE: This file improves UI/responsiveness only. Backend endpoints,
- * state names and behavior remain unchanged.
- */
 export default function ManagerDashboard({ currUser }) {
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
@@ -38,8 +30,7 @@ export default function ManagerDashboard({ currUser }) {
   const [savingEmployee, setSavingEmployee] = useState(false);
   const [empDialogOpen, setEmpDialogOpen] = useState(false);
 
-  // Resolve manager id (support either currUser.id or currUser.clerkId if needed)
-  const managerId = currUser?.id ?? currUser?.clerkId ?? null;
+  const managerId = currUser?.id;
 
   const fetchEmployees = useCallback(async () => {
     if (!managerId) {
@@ -57,7 +48,7 @@ export default function ManagerDashboard({ currUser }) {
         throw new Error(err?.error || `Failed to fetch employees (${res.status})`);
       }
       const data = await res.json();
-      // API may return array or { employees: [...] } — normalize
+      
       const list = Array.isArray(data) ? data : data.employees ?? [];
       list.sort((a, b) => (b.employeePendingOrders ?? 0) - (a.employeePendingOrders ?? 0));
       setEmployees(list);

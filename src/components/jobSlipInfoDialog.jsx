@@ -14,6 +14,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Card, CardContent } from "./ui/card";
 import { Separator } from "./ui/separator";
+import { Edit3, Trash2 } from "lucide-react";
 
 export default function JobSlipInfoDialog({ open, setOpen, jobSlip }) {
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
@@ -196,6 +197,22 @@ export default function JobSlipInfoDialog({ open, setOpen, jobSlip }) {
         <Separator className="my-3" />
 
         <DialogFooter className="flex justify-center pt-2">
+          <Button
+            variant="destructive"
+            size={"sm"}
+            className="flex cursor-pointer items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-md shadow-sm transition-all"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </Button>
+          <Button
+          size="sm"
+            onClick={() => console.log("Edit clicked")}
+            className="flex cursor-pointer items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded-md shadow-sm transition-all"
+          >
+            <Edit3 className="w-4 h-4" />
+            Edit
+          </Button>
           <Button
             variant="outline"
             size="sm"
