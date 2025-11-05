@@ -10,7 +10,7 @@ import { useProdManager } from "@/context/ProdManagerContext";
 import { useGlobalUser } from "@/context/UserContext";
 import { useParams } from "next/navigation";
 import React, { useState, useMemo } from "react";
-import useSWR from "swr";
+import useSWR, { mutate as globalMutate } from "swr";
 
 /* ----------------------------- 🧠 SWR Fetcher ----------------------------- */
 const fetcher = async (url) => {
@@ -23,6 +23,7 @@ export default function ItemDashboardPage() {
   const params = useParams();
   const { itemId } = params;
   const { currentUser } = useGlobalUser();
+  const managerId= currentUser?.id;
   const { designs } = useProdManager();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -90,6 +91,8 @@ export default function ItemDashboardPage() {
 
     // ✅ Refresh the SWR state
     mutate();
+    globalMutate(`/api/fabricators?managerId=${managerId}`);
+        globalMutate(`/api/designs?managerId=${managerId}`);
 
   } catch (error) {
     console.error("Error completing job slip:", error);

@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGlobalUser } from "@/context/UserContext";
 import { useParams } from "next/navigation";
 import React, { useState, useMemo } from "react";
-import useSWR from "swr";
+import useSWR, { mutate as globalMutate } from "swr";
 
 /* ----------------------------- 🧠 SWR Fetcher ----------------------------- */
 const fetcher = async (url) => {
@@ -22,7 +22,7 @@ export default function FabricatorDashboardPage() {
   const params = useParams();
   const { fabricatorId } = params;
   const { currentUser } = useGlobalUser();
-
+  const managerId= currentUser?.id;
   const [searchTerm, setSearchTerm] = useState("");
   const [showType, setShowType] = useState("all");
 
@@ -87,8 +87,9 @@ export default function FabricatorDashboardPage() {
 
     if (!res.ok) throw new Error("Failed to complete job slip");
 
-    // ✅ Refresh the SWR state
     mutate();
+    globalMutate(`/api/fabricators?managerId=${managerId}`);
+    globalMutate(`/api/designs?managerId=${managerId}`);
 
   } catch (error) {
     console.error("Error completing job slip:", error);

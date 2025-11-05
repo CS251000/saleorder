@@ -836,7 +836,7 @@ useEffect(() => {
                         <Input
                           id="average"
                           name="average"
-                          value={form.average}
+                          // value={form.average}
                           onChange={(e) =>
                             setForm({ ...form, average: e.target.value })
                           }
@@ -850,7 +850,7 @@ useEffect(() => {
                         <Input
                           id="fabrication"
                           name="fabrication"
-                          value={form.fabrication}
+                          // value={form.fabrication}
                           onChange={(e) =>
                             setForm({ ...form, fabrication: e.target.value })
                           }
@@ -1070,7 +1070,7 @@ useEffect(() => {
                         <Input
                           id="costing"
                           name="costing"
-                          value={form.costing}
+                          // value={form.costing}
                           onChange={(e) =>
                             setForm({ ...form, costing: e.target.value })
                           }

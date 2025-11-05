@@ -161,7 +161,8 @@ export async function GET(req) {
         purchaseRate: purchaseOrder.purchaseRate,
         quantity: purchaseOrder.quantity,
         status: purchaseOrder.status,
-
+        clothId:purchaseOrder.clothId,
+        agentId:purchaseOrder.agentId,
         clothName: cloths.name,
         agentName: clothBuyAgents.name,
         millName: mills.name,
@@ -202,90 +203,49 @@ export async function GET(req) {
 export async function PUT(req) {
   try {
     const body = await req.json();
-    const { id, status } = body;
+    const { POid, POnumber, clothId, agentId } = body;
 
-    if (!id || !status) {
+    if (!POid || !POnumber) {
       return NextResponse.json(
-        { error: "Missing required fields: id or status" },
+        { error: "Missing required field: POid or POnumber" },
         { status: 400 }
       );
     }
 
-    // ✅ Transaction to safely update status and counts
-    const updatedPO = await db.transaction(async (tx) => {
-      // Fetch existing PO to adjust counts properly
-      const [existing] = await tx
-        .select()
-        .from(purchaseOrder)
-        .where(eq(purchaseOrder.id, id));
-
-      if (!existing) {
-        throw new Error("Purchase order not found");
-      }
-
-      // ✅ Update purchase order status
+    const updatedSlip = await db.transaction(async (tx) => {
       const [updated] = await tx
         .update(purchaseOrder)
-        .set({ status })
-        .where(eq(purchaseOrder.id, id))
+        .set({ status: "Completed" })
+        .where(eq(purchaseOrder.id, POid))
         .returning();
 
-      // ✅ Update pending/completed counts when status changes
-      if (status === "Completed") {
-        const updates = [];
+      const updates = [];
 
-        if (existing.clothId) {
-          updates.push(
-            tx
-              .update(cloths)
-              .set({
-                pending: sql`GREATEST(COALESCE(${cloths.pending}, 1) - 1, 0)`,
-                dispatched: sql`COALESCE(${cloths.dispatched}, 0) + 1`,
-              })
-              .where(eq(cloths.id, existing.clothId))
-          );
-        }
-
-        if (existing.designId) {
-          updates.push(
-            tx
-              .update(designs)
-              .set({
-                pending: sql`GREATEST(COALESCE(${designs.pending}, 1) - 1, 0)`,
-                dispatched: sql`COALESCE(${designs.dispatched}, 0) + 1`,
-              })
-              .where(eq(designs.id, existing.designId))
-          );
-        }
-
-        if (existing.fabricatorId) {
-          updates.push(
-            tx
-              .update(fabricators)
-              .set({
-                pending: sql`GREATEST(COALESCE(${fabricators.pending}, 1) - 1, 0)`,
-                dispatched: sql`COALESCE(${fabricators.dispatched}, 0) + 1`,
-              })
-              .where(eq(fabricators.id, existing.fabricatorId))
-          );
-        }
-
-        if (existing.agentId) {
-          updates.push(
-            tx
-              .update(clothBuyAgents)
-              .set({
-                pending: sql`GREATEST(COALESCE(${clothBuyAgents.pending}, 1) - 1, 0)`,
-                dispatched: sql`COALESCE(${clothBuyAgents.dispatched}, 0) + 1`,
-              })
-              .where(eq(clothBuyAgents.id, existing.agentId))
-          );
-        }
-
-        if (updates.length > 0) {
-          await Promise.all(updates);
-        }
+      if (clothId) {
+        updates.push(
+          tx
+            .update(cloths)
+            .set({
+              pending: sql`GREATEST(COALESCE(${cloths.pending}, 1) - 1, 0)`,
+              dispatched: sql`${cloths.dispatched} + 1`,
+            })
+            .where(eq(cloths.id, clothId))
+        );
       }
+
+      if (agentId) {
+        updates.push(
+          tx
+            .update(clothBuyAgents)
+            .set({
+              pending: sql`GREATEST(COALESCE(${clothBuyAgents.pending}, 1) - 1, 0)`,
+              dispatched: sql`${clothBuyAgents.dispatched} + 1`,
+            })
+            .where(eq(clothBuyAgents.id, agentId))
+        );
+      }
+
+      if (updates.length > 0) await Promise.all(updates);
 
       return updated;
     });
@@ -293,7 +253,7 @@ export async function PUT(req) {
     return NextResponse.json(
       {
         message: "✅ Purchase order status updated successfully",
-        data: updatedPO,
+        data: updatedSlip,
       },
       { status: 200 }
     );
@@ -305,6 +265,7 @@ export async function PUT(req) {
     );
   }
 }
+
 
 export async function DELETE(req) {
   try {

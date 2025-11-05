@@ -193,28 +193,81 @@ export async function GET(req) {
 export async function PUT(req) {
   try {
     const body = await req.json();
-    const { jobSlipNumber,designId,fabricatorId } = body;
+    const {
+      isEditForm,
+      jobSlipNumber,
+      managerId,
+      orderDate,
+      fabricatorId,
+      dueDate,
+      isSampleGiven,
+      clothId,
+      totalMeter,
+      price,
+      designId,
+      average,
+      fabrication,
+      costing,
+      isBestSeller,
+      expenses = [],
+    } = body;
 
     if (!jobSlipNumber) {
       return NextResponse.json(
-        { error: "Missing required field: jobSlipNumber" },
+        { error: "Missing required jobSlipNumber" },
         { status: 400 }
       );
     }
 
-    // ✅ Use transaction for safe multi-table update
-    const updatedSlip = await db.transaction(async (tx) => {
+    /* ---------------------------------------------------------------------- */
+    /* ✅ EDIT MODE (Update all fields + expenses JSONB) */
+    /* ---------------------------------------------------------------------- */
+    if (isEditForm) {
+      const formattedExpenses = expenses.map((e) => ({
+    value: e.value,
+    label: e.label,
+    amount: Number(e.amount) || 0,
+  }));
 
-      // ✅ Update status to Completed
+      const [updatedSlip] = await db
+        .update(jobOrder)
+        .set({
+          managerId,
+          orderDate: orderDate ? new Date(orderDate).toISOString() : null,
+          fabricatorId: fabricatorId || null,
+          dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+          isSampleGiven: !!isSampleGiven,
+          clothId: clothId || null,
+          totalMeter: totalMeter ?? 0,
+          price: price ?? 0,
+          designId: designId || null,
+          average: average ?? 0,
+          fabrication: fabrication ?? 0,
+          costing: costing ?? 0,
+          isBestSeller: !!isBestSeller,
+          expenses: formattedExpenses, 
+        })
+        .where(eq(jobOrder.jobSlipNumber, jobSlipNumber))
+        .returning();
+
+      return NextResponse.json(
+        { message: "✅ Job slip updated successfully", data: updatedSlip },
+        { status: 200 }
+      );
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* ✅ MARK AS COMPLETED (Existing logic) */
+    /* ---------------------------------------------------------------------- */
+
+    const updatedSlip = await db.transaction(async (tx) => {
       const [updated] = await tx
         .update(jobOrder)
         .set({ status: "Completed" })
         .where(eq(jobOrder.jobSlipNumber, jobSlipNumber))
         .returning();
 
-      // ✅ Adjust related entity counters
       const updates = [];
-
 
       if (designId) {
         updates.push(
@@ -222,9 +275,9 @@ export async function PUT(req) {
             .update(designs)
             .set({
               pending: sql`GREATEST(COALESCE(${designs.pending}, 1) - 1, 0)`,
-              dispatched: sql`COALESCE(${designs.dispatched}, 0) + 1`,
+              dispatched: sql`${designs.dispatched} + 1`,
             })
-            .where(eq(designs.id,designId))
+            .where(eq(designs.id, designId))
         );
       }
 
@@ -234,9 +287,9 @@ export async function PUT(req) {
             .update(fabricators)
             .set({
               pending: sql`GREATEST(COALESCE(${fabricators.pending}, 1) - 1, 0)`,
-              dispatched: sql`COALESCE(${fabricators.dispatched}, 0) + 1`,
+              dispatched: sql`${fabricators.dispatched} + 1`,
             })
-            .where(eq(fabricators.id,fabricatorId))
+            .where(eq(fabricators.id, fabricatorId))
         );
       }
 
@@ -246,18 +299,20 @@ export async function PUT(req) {
     });
 
     return NextResponse.json(
-      { message: "✅ Job slip completed successfully", data: updatedSlip },
+      { message: "✅ Job slip marked completed", data: updatedSlip },
       { status: 200 }
     );
 
   } catch (error) {
-    console.error("❌ Error completing job slip:", error);
+    console.error("❌ Error in PUT /jobOrder:", error);
     return NextResponse.json(
       { error: "Internal Server Error", details: error.message },
       { status: 500 }
     );
   }
 }
+
+
 
 
 export async function DELETE(req) {

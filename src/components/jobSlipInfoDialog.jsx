@@ -15,10 +15,11 @@ import { Badge } from "./ui/badge";
 import { Card, CardContent } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Edit3, Trash2 } from "lucide-react";
+import EditJobOrder from "./editJobOrder";
 
 export default function JobSlipInfoDialog({ open, setOpen, jobSlip }) {
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
-
+  const [editOpen,setEditOpen]= useState(false);
   if (!jobSlip) return null;
 
   // ✅ Normalize expenses to array
@@ -205,14 +206,16 @@ export default function JobSlipInfoDialog({ open, setOpen, jobSlip }) {
             <Trash2 className="w-4 h-4" />
             Delete
           </Button>
+
           <Button
           size="sm"
-            onClick={() => console.log("Edit clicked")}
+            onClick={() => setEditOpen(true)}
             className="flex cursor-pointer items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded-md shadow-sm transition-all"
           >
             <Edit3 className="w-4 h-4" />
             Edit
           </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -223,6 +226,16 @@ export default function JobSlipInfoDialog({ open, setOpen, jobSlip }) {
           </Button>
         </DialogFooter>
       </DialogContent>
+      <EditJobOrder
+  jobSlip={jobSlip}
+  onSuccess={() => {
+    setEditOpen(false);
+    setOpen(false);
+  }}
+  open={editOpen}
+  setOpen={setEditOpen}
+/>
+
     </Dialog>
   );
 }

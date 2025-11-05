@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGlobalUser } from "@/context/UserContext";
 import { useParams } from "next/navigation";
 import React, { useState, useMemo } from "react";
-import useSWR from "swr";
+import useSWR, { mutate as globalMutate } from "swr";
 
 /* ----------------------------- 🧠 SWR Fetcher ----------------------------- */
 const fetcher = async (url) => {
@@ -21,7 +21,7 @@ export default function AgentDashboardPage() {
   const params = useParams();
   const { agentid } = params;
   const { currentUser } = useGlobalUser();
-
+  const managerId= currentUser?.id;
   const [searchTerm, setSearchTerm] = useState("");
   const [showType, setShowType] = useState("all");
 
@@ -67,6 +67,34 @@ export default function AgentDashboardPage() {
     // Revalidate purchase orders after new one is added
     mutate();
   };
+
+   async function handleCompletePO(purchaseOrder) {
+    const confirmComplete = window.confirm(
+    `Are you sure you want to mark PO ${purchaseOrder.POnumber||""} as Completed?`
+  );
+
+  if (!confirmComplete) return; 
+  try {
+    const res = await fetch(`/api/purchaseOrder`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        POid:purchaseOrder.id,
+        POnumber : purchaseOrder.poNumber,
+        clothId: purchaseOrder.clothId,
+        agentId: purchaseOrder.agentId }),
+    });
+
+    if (!res.ok) throw new Error("Failed to complete purchase order");
+
+    mutate();
+    globalMutate(`/api/clothBuyAgents?managerId=${managerId}`);
+    globalMutate(`/api/cloths?managerId=${managerId}`);
+
+  } catch (error) {
+    console.error("Error completing job slip:", error);
+  }
+}
 
   /* ----------------------------- 🖥️ Render ----------------------------- */
   if (!currentUser)
@@ -167,7 +195,7 @@ export default function AgentDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {filteredPOs.length > 0 ? (
           filteredPOs.map((po) => (
-            <AgentPO key={po.id} purchaseOrder={po} />
+            <AgentPO key={po.id} purchaseOrder={po} onComplete={handleCompletePO} />
           ))
         ) : !loading ? (
           <p className="text-center col-span-full text-gray-500">
