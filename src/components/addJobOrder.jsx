@@ -102,7 +102,7 @@ export function AddJobOrderForm({ fabricatorId, designId,onSuccess }) {
   const [selectedPO, setSelectedPO] = useState(null);
   const [expenses, setExpenses] = useState([]);
   const [expenseSaving,setExpenseSaving]= useState(false);
-
+  const [POs,setPOs]= useState([]);
   const [saving, setSaving] = useState(false);
 
   const { currentUser } = useGlobalUser();
@@ -201,13 +201,37 @@ export function AddJobOrderForm({ fabricatorId, designId,onSuccess }) {
     setForm({...initialFormState,managerId:currentUser.id});
     setSelectedExpenses([]);
   }
-  
+
+useEffect(() => {
+  if (!form.managerId || !form.clothId) return;
+
+  const fetchPurchaseOrders = async () => {
+    try {
+      const params = new URLSearchParams({ managerId: form.managerId });
+
+      params.append("clothId", form.clothId);
+
+      const res = await fetch(`/api/purchaseOrder?${params.toString()}`);
+      let data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Failed to fetch orders");
+
+      // Filter pending POs
+      data = data.filter(po => po.status === "Pending");
+
+      // Update state
+      setPOs(data);
+
+      console.log("Fetched Purchase Orders:", data);
+    } catch (error) {
+      console.error("Error fetching purchase orders:", error);
+    }
+  };
+
+  fetchPurchaseOrders();
+}, [form.managerId, form.clothId]);
 
 
-  
-
-
-  // ✅ Preselect fabricator if ID is passed via props
 useEffect(() => {
   if (fabricatorId) {
     const found = fabricators.find((f) => f.id === Number(fabricatorId));
@@ -631,7 +655,7 @@ useEffect(() => {
                               variant="outline"
                               role="combobox"
                               aria-expanded={poOpen}
-                              disabled={!form.clothName} // disable until cloth selected
+                              disabled={!form.clothName} 
                               className={`w-full justify-between ${
                                 !form.clothName
                                   ? "cursor-not-allowed opacity-60"
@@ -641,11 +665,11 @@ useEffect(() => {
                               {selectedPO ? (
                                 <div className="flex flex-col items-start">
                                   <span className="font-medium">
-                                    {selectedPO.POnumber}
+                                    {selectedPO.poNumber}
                                   </span>
                                   <span className="text-xs text-muted-foreground">
-                                    {selectedPO.designName} •{" "}
-                                    {selectedPO.fabricator}
+                                    {selectedPO.designName ||""} •{" "}
+                                    {selectedPO.fabricatorName||""}
                                   </span>
                                 </div>
                               ) : (
@@ -667,27 +691,24 @@ useEffect(() => {
                                   No purchase order found.
                                 </CommandEmpty>
                                 <CommandGroup>
-                                  {purchaseOrders
-                                    .filter(
-                                      (po) => po.clothName === form.clothName
-                                    )
+                                  {POs
                                     .map((po) => (
                                       <CommandItem
                                         key={po.id}
-                                        value={po.POnumber}
+                                        value={po.poNumber}
                                         onSelect={() => {
                                           setSelectedPO(po);
                                           setPoOpen(false);
-                                          setTotalMeter(po.quantity);
-                                          setTotalPrice(po.purchaseRate);
+                                          setForm({...form,totalMeter:po.quantity,price:po.purchaseRate})
+                                          
                                         }}
                                       >
                                         <div className="flex flex-col cursor-pointer">
                                           <span className="font-medium">
-                                            {po.POnumber}
+                                            {po.poNumber}
                                           </span>
                                           <span className="text-xs text-muted-foreground">
-                                            {po.designName} • {po.fabricator}
+                                            {po.designName} • {po.fabricatorName}
                                           </span>
                                           <span className="text-xs text-gray-500">
                                             Qty: {po.quantity} | Rate: ₹

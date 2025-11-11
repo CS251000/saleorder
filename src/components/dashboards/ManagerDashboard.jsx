@@ -2,9 +2,9 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import {  UserPlus, Users } from "lucide-react";
+import { UserPlus, Users } from "lucide-react";
 import { Button } from "../ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -16,14 +16,18 @@ import toast, { Toaster } from "react-hot-toast";
 import ManagerDashboardEmployees from "./ManagerDashboardEmployees";
 import AddSaleOrderForm from "../addSaleOrder";
 import ManagerDashboardParties from "./ManagerDashboardParties";
+import { planLimits } from "@/lib/constants";
+import { useGlobalUser } from "@/context/UserContext";
 
-export default function ManagerDashboard({ currUser }) {
+export default function ManagerDashboard() {
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [loadingParties, setLoadingParties] = useState(false);
   const [fetchError, setFetchError] = useState(null);
   const [partyView, setPartyView] = useState(false);
   const [parties, setParties] = useState([]);
+  const {currentUser}= useGlobalUser();
+  const currUser= currentUser;
 
   // Add employee form state
   const [employeeId, setEmployeeId] = useState("");
@@ -31,6 +35,7 @@ export default function ManagerDashboard({ currUser }) {
   const [empDialogOpen, setEmpDialogOpen] = useState(false);
 
   const managerId = currUser?.id;
+  const planName = currUser?.plan_name;
 
   const fetchEmployees = useCallback(async () => {
     if (!managerId) {
@@ -40,17 +45,25 @@ export default function ManagerDashboard({ currUser }) {
     setLoadingEmployees(true);
     setFetchError(null);
     try {
-      const res = await fetch(`/api/employees?managerId=${encodeURIComponent(managerId)}`,{
-        next:{tags: ['employees'],revalidate:150}
-      });
+      const res = await fetch(
+        `/api/employees?managerId=${encodeURIComponent(managerId)}`,
+        {
+          next: { tags: ["employees"], revalidate: 150 },
+        }
+      );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error || `Failed to fetch employees (${res.status})`);
+        throw new Error(
+          err?.error || `Failed to fetch employees (${res.status})`
+        );
       }
       const data = await res.json();
-      
+
       const list = Array.isArray(data) ? data : data.employees ?? [];
-      list.sort((a, b) => (b.employeePendingOrders ?? 0) - (a.employeePendingOrders ?? 0));
+      list.sort(
+        (a, b) =>
+          (b.employeePendingOrders ?? 0) - (a.employeePendingOrders ?? 0)
+      );
       setEmployees(list);
     } catch (err) {
       console.error("fetchEmployees error:", err);
@@ -69,12 +82,17 @@ export default function ManagerDashboard({ currUser }) {
     setLoadingParties(true);
     setFetchError(null);
     try {
-      const res = await fetch(`/api/parties?managerId=${encodeURIComponent(managerId)}`,{
-        next:{tags: ['parties'],revalidate:150}
-      });
+      const res = await fetch(
+        `/api/parties?managerId=${encodeURIComponent(managerId)}`,
+        {
+          next: { tags: ["parties"], revalidate: 150 },
+        }
+      );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error || `Failed to fetch parties (${res.status})`);
+        throw new Error(
+          err?.error || `Failed to fetch parties (${res.status})`
+        );
       }
       const data = await res.json();
       // API may return array or { parties: [...] } — normalize
@@ -108,6 +126,10 @@ export default function ManagerDashboard({ currUser }) {
       toast.error("Manager ID missing");
       return;
     }
+    if (employees.length >= (planLimits[planName]?.employeeLimit)) {
+      toast.error(`Employee limit reached for your plan (${planName}).Upgrade to continue`);
+      return;
+    }
 
     setSavingEmployee(true);
     try {
@@ -121,7 +143,9 @@ export default function ManagerDashboard({ currUser }) {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        throw new Error(data?.error || `Failed to add employee (${res.status})`);
+        throw new Error(
+          data?.error || `Failed to add employee (${res.status})`
+        );
       }
 
       toast.success("Employee added successfully!");
@@ -143,7 +167,9 @@ export default function ManagerDashboard({ currUser }) {
   if (!currUser) {
     return (
       <div className="p-6">
-        <p className="text-center text-gray-600">No manager found. Please sign in.</p>
+        <p className="text-center text-gray-600">
+          No manager found. Please sign in.
+        </p>
       </div>
     );
   }
@@ -155,7 +181,9 @@ export default function ManagerDashboard({ currUser }) {
     lastName: currUser.lastName,
   };
 
-  const managerName = currUser.username ?? `${currUser.firstName ?? ""} ${currUser.lastName ?? ""}`.trim();
+  const managerName =
+    currUser.username ??
+    `${currUser.firstName ?? ""} ${currUser.lastName ?? ""}`.trim();
 
   return (
     <div className="relative w-full px-4 sm:px-6 lg:px-8">
@@ -205,7 +233,6 @@ export default function ManagerDashboard({ currUser }) {
 
         {/* Right controls */}
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-          
           {/* Add Employee Dialog */}
           <Dialog open={empDialogOpen} onOpenChange={setEmpDialogOpen}>
             <DialogTrigger asChild>
@@ -228,7 +255,9 @@ export default function ManagerDashboard({ currUser }) {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add a new Employee</DialogTitle>
-                <p className="text-sm text-gray-500">Enter the Employee ID below.</p>
+                <p className="text-sm text-gray-500">
+                  Enter the Employee ID below.
+                </p>
               </DialogHeader>
 
               <form
@@ -273,16 +302,24 @@ export default function ManagerDashboard({ currUser }) {
       </div>
       {/* tabs + label */}
       <div className="flex w-full max-w-sm flex-col gap-6 mb-4">
-      <Tabs defaultValue={partyView ? "parties" : "employees"}>
-        <TabsList>
-          <TabsTrigger className={"cursor-pointer text-md"} value="employees" onClick={() => setPartyView(false)}>
-            Employees
-          </TabsTrigger>
-          <TabsTrigger className={"cursor-pointer text-md"} value="parties" onClick={() => setPartyView(true)}>
-            Parties
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+        <Tabs defaultValue={partyView ? "parties" : "employees"}>
+          <TabsList>
+            <TabsTrigger
+              className={"cursor-pointer text-md"}
+              value="employees"
+              onClick={() => setPartyView(false)}
+            >
+              Employees
+            </TabsTrigger>
+            <TabsTrigger
+              className={"cursor-pointer text-md"}
+              value="parties"
+              onClick={() => setPartyView(true)}
+            >
+              Parties
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Main content area */}
@@ -295,7 +332,11 @@ export default function ManagerDashboard({ currUser }) {
                   <Users />
                   <h4 className="text-sm font-semibold">Employees</h4>
                 </div>
-                <div className="text-xs text-gray-500">{loadingEmployees ? "Loading..." : `${employees.length} employees`}</div>
+                <div className="text-xs text-gray-500">
+                  {loadingEmployees
+                    ? "Loading..."
+                    : `${employees.length} employees`}
+                </div>
               </div>
 
               {/**
@@ -317,7 +358,9 @@ export default function ManagerDashboard({ currUser }) {
                   <Users />
                   <h4 className="text-sm font-semibold">Parties</h4>
                 </div>
-                <div className="text-xs text-gray-500">{loadingParties ? "Loading..." : `${parties.length} parties`}</div>
+                <div className="text-xs text-gray-500">
+                  {loadingParties ? "Loading..." : `${parties.length} parties`}
+                </div>
               </div>
 
               <ManagerDashboardParties
@@ -333,7 +376,6 @@ export default function ManagerDashboard({ currUser }) {
           <div className="mt-4 text-sm text-red-500">Error: {fetchError}</div>
         ) : null}
       </div>
-
     </div>
   );
 }

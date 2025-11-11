@@ -24,7 +24,7 @@ export async function POST(req) {
     .from(users)
     .where(eq(managerId,users.id)).limit(1);
 
-     if (!manager || !manager.organization) {
+     if (!manager) {
       return NextResponse.json(
         { error: "Manager not found or has no organization" },
         { status: 404 }

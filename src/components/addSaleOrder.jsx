@@ -30,6 +30,7 @@ import {
   CommandEmpty,
   CommandItem,
 } from "@/components/ui/command";
+import { planLimits } from "@/lib/constants";
 
 export default function AddSaleOrderForm({
   currUser,
@@ -39,6 +40,7 @@ export default function AddSaleOrderForm({
   triggerLabel = "Add Sale Order",
   triggerClassName = "flex items-center gap-2",
 }) {
+  const planName=currUser?.plan_name;
   const [open, setOpen] = useState(false);
 
   // data
@@ -198,6 +200,10 @@ export default function AddSaleOrderForm({
 
   // create helpers
   const createParty = async (name) => {
+    if (parties.length >= (planLimits[planName]?.partyLimit)) {
+          toast.error(`Party limit reached for your plan (${planName}).Upgrade to continue`);
+          return;
+        }
     const payload = {
       partyName: name,
       managerId: managerId,
@@ -216,6 +222,10 @@ export default function AddSaleOrderForm({
   };
 
   const createAgent = async (name) => {
+    if (agents.length >= (planLimits[planName]?.agentLimit)) {
+          toast.error(`Agent limit reached for your plan (${planName}).Upgrade to continue`);
+          return;
+        }
     const payload = {
       agentName: name,
       managerId: managerId,

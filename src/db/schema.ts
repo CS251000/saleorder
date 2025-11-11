@@ -5,6 +5,7 @@ import { boolean, date, index, integer, jsonb, numeric, pgEnum, pgTable, serial,
 export const roleEnum = pgEnum("role", ["Manager", "Admin","Employee"]);
 export const saleOrderStatus= pgEnum("status",["Dispatched","Pending"]);
 export const jobSlipStatus= pgEnum("Job_slip_status",["Pending","Completed"]);
+export const plans= pgEnum("plan_names",["EazyCore","EazyPro","EazyElite"]);
 
 export const users= pgTable("users", {
   id: uuid("id").default(sql`gen_random_uuid()`).primaryKey(),
@@ -15,6 +16,7 @@ export const users= pgTable("users", {
   username: varchar("username"),
   firstName: text("first_name"),
   lastName: text("last_name"),
+  planName:plans("plan_name"),
   organization : uuid("organization").references(()=>organizations.id),
   role: roleEnum("role"),
   age: integer("age")

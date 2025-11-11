@@ -13,7 +13,7 @@ function TaskManagerContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar2 />
-      <ManagerDashboard currUser={currentUser} />
+      <ManagerDashboard />
     </div>
   );
 }
