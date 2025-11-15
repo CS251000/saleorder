@@ -211,6 +211,20 @@
       "when": 1762793515535,
       "tag": "0029_fixed_scarlet_spider",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1762920910171,
+      "tag": "0030_funny_yellow_claw",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1763134124058,
+      "tag": "0031_tan_master_mold",
+      "breakpoints": true
     }
   ]
 }

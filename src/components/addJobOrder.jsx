@@ -34,7 +34,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
+import { addDays, format } from "date-fns";
 import {
   Command,
   CommandEmpty,
@@ -50,47 +50,8 @@ import { useProdManager } from "@/context/ProdManagerContext";
 import { useGlobalUser } from "@/context/UserContext";
 import toast from "react-hot-toast";
 
-const purchaseOrders = [
-  {
-    POnumber: "PO-001",
-    id: 1,
-    orderDate: "2024-01-15",
-    agent: "Agent A",
-    mill: "Mill X",
-    clothName: "Cloth A",
-    purchaseRate: "50",
-    designName: "Design X",
-    fabricator: "Fabricator 1",
-    quantity: "100",
-    dueDate: "2024-02-15",
-  },
-  {
-    POnumber: "PO-002",
-    id: 2,
-    orderDate: "2024-01-16",
-    agent: "Agent B",
-    mill: "Mill Y",
-    clothName: "Cloth B",
-    purchaseRate: "60",
-    quantity: "200",
-    dueDate: "2024-02-16",
-  },
-  {
-    POnumber: "PO-003",
-    id: 3,
-    orderDate: "2024-01-17",
-    agent: "Agent C",
-    mill: "Mill Z",
-    clothName: "Cloth A",
-    designName: "Design Y",
-    fabricator: "Fabricator 2",
-    purchaseRate: "70",
-    quantity: "300",
-    dueDate: "2024-02-17",
-  },
-];
-
-export function AddJobOrderForm({ fabricatorId, designId,onSuccess }) {
+export function AddJobOrderForm({ fabricatorId, designId, onSuccess }) {
+  const [open, setOpen] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
   const [clothOpen, setClothOpen] = useState(false);
   const [designOpen, setDesignOpen] = useState(false);
@@ -101,30 +62,32 @@ export function AddJobOrderForm({ fabricatorId, designId,onSuccess }) {
   const [poOpen, setPoOpen] = useState(false);
   const [selectedPO, setSelectedPO] = useState(null);
   const [expenses, setExpenses] = useState([]);
-  const [expenseSaving,setExpenseSaving]= useState(false);
-  const [POs,setPOs]= useState([]);
+  const [expenseSaving, setExpenseSaving] = useState(false);
+  const [POs, setPOs] = useState([]);
   const [saving, setSaving] = useState(false);
 
   const { currentUser } = useGlobalUser();
   const initialFormState = {
-  jobSlipNumber: "",
-  managerId: currentUser.id,
-  orderDate: new Date(),
-  fabricatorId: null,
-  fabricatorName: "",
-  dueDate: null,
-  isSampleGiven: false,
-  clothId: null,
-  clothName: "",
-  totalMeter: 0.0,
-  price: 0.0,
-  designId: null,
-  designName: "",
-  average: 0.0,
-  fabrication: 0.0,
-  costing: 0.0,
-  isBestSeller: false,
-};
+    jobSlipNumber: "",
+    managerId: currentUser.id,
+    orderDate: new Date(),
+    fabricatorId: null,
+    fabricatorName: "",
+    dueDate: null,
+    dueDays: "",
+    isSampleGiven: false,
+    clothId: null,
+    clothName: "",
+    totalMeter: "",
+    price: "",
+    designId: null,
+    designName: "",
+    average: 0.0,
+    fabrication: 0.0,
+    costing: 0.0,
+    salePrice: 0.0,
+    isBestSeller: false,
+  };
 
   const [form, setForm] = useState(initialFormState);
 
@@ -143,13 +106,35 @@ export function AddJobOrderForm({ fabricatorId, designId,onSuccess }) {
   const handleAddExpense = (e) => {
     const val = e.target.value;
     if (!val) return;
+
     const found = expenses.find((ex) => ex.value === val);
     if (!found) return;
-    // prevent duplicate
+
     if (selectedExpenses.some((s) => s.value === found.value)) return;
+
     setSelectedExpenses((prev) => [...prev, { ...found, amount: "" }]);
-    setExpenseToAdd("");
   };
+
+  async function handleCompletePO(purchaseOrder) {
+    try {
+      const res = await fetch(`/api/purchaseOrder`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          POid: purchaseOrder.id,
+          POnumber: purchaseOrder.poNumber,
+          clothId: purchaseOrder.clothId,
+          agentId: purchaseOrder.agentId,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to complete purchase order");
+      globalMutate(`/api/clothBuyAgents?managerId=${managerId}`);
+      globalMutate(`/api/cloths?managerId=${managerId}`);
+    } catch (error) {
+      console.error("Error completing job slip:", error);
+    }
+  }
 
   const handleAmountChange = (index, value) => {
     setSelectedExpenses((prev) => {
@@ -180,83 +165,98 @@ export function AddJobOrderForm({ fabricatorId, designId,onSuccess }) {
   async function handleAddNewExpense(name) {
     try {
       setExpenseSaving(true);
+
       const res = await fetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expenseName:name, managerId: currentUser.id }),
+        body: JSON.stringify({ expenseName: name, managerId: currentUser.id }),
       });
+
       const newExpense = await res.json();
       const formatted = { value: newExpense.id, label: newExpense.expenseName };
+
       setExpenses((prev) => [...prev, formatted]);
-      setExpenseToAdd(formatted.value);
+
+      // Auto-add after creation
+      handleAddExpense({ target: { value: formatted.value } });
+
+      setExpenseToAdd("");
       setExpenseComboOpen(false);
     } catch (err) {
       console.error("Error adding expense:", err);
-    }finally{
+    } finally {
       setExpenseSaving(false);
     }
   }
 
-  const handleCancel=()=>{
-    setForm({...initialFormState,managerId:currentUser.id});
+  const handleCancel = () => {
+    setForm({ ...initialFormState, managerId: currentUser.id });
     setSelectedExpenses([]);
-  }
-
-useEffect(() => {
-  if (!form.managerId || !form.clothId) return;
-
-  const fetchPurchaseOrders = async () => {
-    try {
-      const params = new URLSearchParams({ managerId: form.managerId });
-
-      params.append("clothId", form.clothId);
-
-      const res = await fetch(`/api/purchaseOrder?${params.toString()}`);
-      let data = await res.json();
-
-      if (!res.ok) throw new Error(data.error || "Failed to fetch orders");
-
-      // Filter pending POs
-      data = data.filter(po => po.status === "Pending");
-
-      // Update state
-      setPOs(data);
-
-      console.log("Fetched Purchase Orders:", data);
-    } catch (error) {
-      console.error("Error fetching purchase orders:", error);
-    }
   };
 
-  fetchPurchaseOrders();
-}, [form.managerId, form.clothId]);
+  useEffect(() => {
+    if (!form.managerId || !form.clothId) return;
 
+    const fetchPurchaseOrders = async () => {
+      try {
+        const params = new URLSearchParams({ managerId: form.managerId });
 
-useEffect(() => {
-  if (fabricatorId) {
-    const found = fabricators.find((f) => f.id === Number(fabricatorId));
-    if (found) {
-      setForm((prev) => ({
-        ...prev,
-        fabricatorName: found.name,
-      }));
+        params.append("clothId", form.clothId);
+
+        const res = await fetch(`/api/purchaseOrder?${params.toString()}`);
+        let data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || "Failed to fetch orders");
+
+        // Filter pending POs
+        data = data.filter((po) => po.status === "Pending");
+
+        // Update state
+        setPOs(data);
+
+        console.log("Fetched Purchase Orders:", data);
+      } catch (error) {
+        console.error("Error fetching purchase orders:", error);
+      }
+    };
+
+    fetchPurchaseOrders();
+  }, [form.managerId, form.clothId]);
+
+  useEffect(() => {
+    if (fabricatorId) {
+      const found = fabricators.find((f) => f.id === Number(fabricatorId));
+      if (found) {
+        setForm((prev) => ({
+          ...prev,
+          fabricatorName: found.name,
+        }));
+      }
     }
-  }
 
-  if (designId) {
-    const foundDesign = designs.find((d) => d.id === Number(designId));
-    if (foundDesign) {
-      setForm((prev) => ({
-        ...prev,
-        designName: foundDesign.name,
-      }));
+    if (designId) {
+      const foundDesign = designs.find((d) => d.id === Number(designId));
+      if (foundDesign) {
+        setForm((prev) => ({
+          ...prev,
+          designName: foundDesign.name,
+        }));
+      }
     }
-  }
-}, [fabricatorId, designId, fabricators, designs]);
-
+  }, [fabricatorId, designId, fabricators, designs]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.jobSlipNumber?.trim()) {
+    toast.error("Job Slip Number is required");
+    return;
+  }
+
+  if (!form.managerId) {
+    toast.error("Manager ID is missing");
+    return;
+  }
+
     try {
       setSaving(true);
 
@@ -277,6 +277,7 @@ useEffect(() => {
         average,
         fabrication,
         costing,
+        salePrice,
         isBestSeller,
       } = form;
 
@@ -294,7 +295,6 @@ useEffect(() => {
         const newDesign = await addDesign(designName);
         designId = newDesign?.id;
       }
-
       // 🏗️ Construct final object for submission
       const finalJobSlip = {
         jobSlipNumber,
@@ -310,10 +310,10 @@ useEffect(() => {
         average: parseFloat(average) || 0,
         fabrication: parseFloat(fabrication) || 0,
         costing: parseFloat(costing) || 0,
+        salePrice: parseFloat(salePrice) || 0,
         isBestSeller,
-        expenses:selectedExpenses
+        expenses: selectedExpenses,
       };
-      
 
       // 📨 Send to API
       const res = await fetch("/api/jobOrder", {
@@ -323,21 +323,34 @@ useEffect(() => {
         },
         body: JSON.stringify(finalJobSlip),
       });
-
       if (!res.ok) {
-        throw new Error(`Server error: ${res.status}`);
+      if (res.status === 400) {
+        toast.error(data.error || "Missing required fields");
+      } else if (res.status === 409) {
+        toast.error("Job Slip Number already exists. Please use a different number.");
+      } else if (res.status === 500) {
+        toast.error(data.error || "Server error occurred");
+      } else {
+        toast.error("Failed to create job order");
       }
+      return;
+    }
 
       const data = await res.json();
+      
 
       toast.success("Job Slip created successfully ✅");
+      if(selectedPO){
+        await handleCompletePO(selectedPO)
+      }
+      
       setForm(initialFormState);
       setSelectedExpenses([]);
 
-      if(onSuccess){
+      if (onSuccess) {
         onSuccess();
       }
-
+      setOpen(false);
     } catch (error) {
       console.error("❌ Error submitting job slip:", error);
       toast.error("Error creating job slip");
@@ -347,16 +360,20 @@ useEffect(() => {
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => setOpen(true)}
+        >
           <CirclePlus className="h-5 w-5" />
           Job Order
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[650px] w-[95%]">
-        <ScrollArea className="h-[85vh] pr-4">
+      <DialogContent className="sm:max-w-[600px] w-[100%]">
+        <ScrollArea className="h-[85vh] ">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle>Add Job Order</DialogTitle>
@@ -368,42 +385,37 @@ useEffect(() => {
 
             {/* Form Fields */}
             <div className="flex flex-col space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Job Slip ID */}
-                <div className="flex flex-col space-y-2">
+                <div className="flex flex-col space-y-1.5">
                   <Label htmlFor="jobslipid">Job Slip No.</Label>
                   <Input
                     id="jobslipid"
-                    name="jobslipid"
-                    placeholder="Enter job slip..."
-                    // defaultValue="JobSlip123"
+                    placeholder="Enter..."
                     className="w-full"
                     onChange={(e) =>
-                      setForm({
-                        ...form,
-                        jobSlipNumber: e.target.value,
-                      })
+                      setForm({ ...form, jobSlipNumber: e.target.value })
                     }
                   />
                 </div>
 
                 {/* Job Date */}
-                <div className="flex flex-col space-y-2">
+                <div className="flex flex-col space-y-1.5">
                   <Label>Date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className={`w-full justify-start text-left font-normal ${
-                          !form.orderDate ? "text-muted-foreground" : ""
-                        }`}
+                        className="w-full flex items-center justify-between text-sm overflow-hidden"
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {form.orderDate ? (
-                          format(form.orderDate, "PPP")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CalendarIcon className="h-4 w-4 shrink-0" />
+                          <span className="truncate">
+                            {form.orderDate
+                              ? format(form.orderDate, "dd MMM yyyy")
+                              : "Pick date"}
+                          </span>
+                        </div>
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -411,42 +423,33 @@ useEffect(() => {
                         mode="single"
                         selected={form.orderDate}
                         onSelect={(v) => setForm({ ...form, orderDate: v })}
-                        initialFocus
                       />
                     </PopoverContent>
                   </Popover>
                 </div>
 
                 {/* Fabricator Dropdown */}
-                <div className="flex flex-col space-y-2">
-                  <Label htmlFor="fabricator">Fabricator</Label>
+                <div className="flex flex-col space-y-1.5">
+                  <Label>Fabricator</Label>
                   <Popover open={fabOpen} onOpenChange={setFabOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        role="combobox"
-                        aria-expanded={fabOpen}
-                        className="w-full justify-between"
+                        className="w-full justify-between text-sm overflow-hidden"
                       >
-                        {form.fabricatorName ? (
-                          form.fabricatorName
-                        ) : (
-                          <span className="text-muted-foreground">
-                            Select...
-                          </span>
-                        )}
+                        <span className="truncate max-w-[80%]">
+                          {form.fabricatorName || "Select..."}
+                        </span>
                         <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
+
+                    <PopoverContent className="p-0 w-full">
                       <Command>
                         <CommandInput
                           placeholder="Search fabricator..."
                           onValueChange={(v) =>
-                            setForm({
-                              ...form,
-                              fabricatorName: v,
-                            })
+                            setForm({ ...form, fabricatorName: v })
                           }
                         />
                         <CommandList>
@@ -458,7 +461,7 @@ useEffect(() => {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={async () => {
+                                onClick={() => {
                                   if (!form.fabricatorName) return;
                                   setFabOpen(false);
                                 }}
@@ -468,11 +471,13 @@ useEffect(() => {
                               </Button>
                             </div>
                           </CommandEmpty>
+
                           <CommandGroup>
                             {fabricators.map((f) => (
                               <CommandItem
                                 key={f.id}
                                 value={f.name}
+                                className="truncate"
                                 onSelect={() => {
                                   setForm({
                                     ...form,
@@ -489,7 +494,7 @@ useEffect(() => {
                                       : "opacity-0"
                                   }`}
                                 />
-                                {f.name}
+                                <span className="truncate">{f.name}</span>
                               </CommandItem>
                             ))}
                           </CommandGroup>
@@ -499,60 +504,112 @@ useEffect(() => {
                   </Popover>
                 </div>
 
-                {/* Due Date Picker */}
-                <div className="flex flex-col space-y-2">
-                  <Label>Due Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={`w-full justify-start text-left font-normal ${
-                          !form.dueDate ? "text-muted-foreground" : ""
-                        }`}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {form.dueDate ? (
-                          format(form.dueDate, "PPP")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={form.dueDate}
-                        onSelect={(v) => setForm({ ...form, dueDate: v })}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                {/* Sample Given Toggle */}
+                <div className="mt-5 lg:mt-7">
+                  <Toggle
+                    pressed={form.isSampleGiven}
+                    onPressedChange={(p) =>
+                      setForm({ ...form, isSampleGiven: p })
+                    }
+                    className="cursor-pointer border border-slate-300 transition-all hover:bg-blue-50 hover:text-blue-600
+                 data-[state=on]:bg-blue-50 data-[state=on]:text-blue-600 data-[state=on]:border-blue-300"
+                  >
+                    <Shirt className="w-4 h-4" />
+                    <span className="font-medium">Sample Given</span>
+                  </Toggle>
                 </div>
 
-                <Toggle
-                  pressed={form.isSampleGiven}
-                  onPressedChange={(p) =>
-                    setForm({ ...form, isSampleGiven: p })
-                  }
-                  className={`cursor-pointer
-    border border-slate-300 transition-all
-    hover:bg-blue-50 hover:text-blue-600
-    data-[state=on]:bg-blue-50 data-[state=on]:text-blue-600
-    data-[state=on]:border-blue-300
-    data-[state=on]:*:[svg]:stroke-blue-600 data-[state=on]:*:[svg]:fill-blue-600
-  `}
-                >
-                  <Shirt className="w-4 h-4 transition-all duration-200" />
-                  <span className="font-medium">Sample Given</span>
-                </Toggle>
+                {/* Due Date + Days */}
+                <div className="flex flex-col space-y-1.5 col-span-2">
+                  <Label>Due date</Label>
+
+                  <div className="flex items-center gap-3 w-full rounded-xl border bg-white px-3 py-2 shadow-sm">
+                    {/* Due Date Picker */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="flex items-center gap-2 min-w-0 text-sm truncate"
+                        >
+                          <CalendarIcon className="h-4 w-4 shrink-0" />
+                          <span className="truncate">
+                            {form.dueDate
+                              ? format(form.dueDate, "dd MMM yyyy")
+                              : "Pick due date"}
+                          </span>
+                        </button>
+                      </PopoverTrigger>
+
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={form.dueDate}
+                          onSelect={(v) => {
+                            if (!v) return;
+                            setForm((prev) => {
+                              if (prev.orderDate) {
+                                const diff = differenceInCalendarDays(
+                                  v,
+                                  prev.orderDate
+                                );
+                                return {
+                                  ...prev,
+                                  dueDate: v,
+                                  dueDays: String(Math.max(0, diff)),
+                                };
+                              }
+                              return { ...prev, dueDate: v };
+                            });
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+
+                    {/* Divider */}
+                    <div className="h-6 w-px bg-muted-foreground/20" />
+
+                    {/* Days input */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        Days
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        className="w-20 rounded-md border px-2 py-1 text-sm text-center"
+                        value={form.dueDays ?? ""}
+                        placeholder="0"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "") {
+                            setForm((p) => ({ ...p, dueDays: "" }));
+                            return;
+                          }
+                          const days = Math.max(0, Number(val));
+                          setForm((prev) => {
+                            if (prev.orderDate) {
+                              return {
+                                ...prev,
+                                dueDays: days,
+                                dueDate: addDays(prev.orderDate, days),
+                              };
+                            }
+                            return { ...prev, dueDays: days };
+                          });
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
+
               {/* Material details */}
               <Accordion
                 type="multiple"
                 className="w-full"
                 defaultValue={["shirtdetails"]}
               >
-                {/* Material Details */}
+                {/* ------------------ MATERIAL DETAILS ------------------ */}
                 <AccordionItem
                   value="materialdetails"
                   className="border border-gray-200 rounded-xl shadow-sm bg-white my-2"
@@ -563,36 +620,31 @@ useEffect(() => {
 
                   <AccordionContent className="p-4 text-gray-600 bg-gray-50 rounded-b-xl">
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {/* Cloth Name */}
-                      <div className="flex flex-col space-y-2">
-                        <Label htmlFor="clothname">Cloth Name</Label>
+                      {/* CLOTH NAME */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Cloth Name</Label>
+
                         <Popover open={clothOpen} onOpenChange={setClothOpen}>
                           <PopoverTrigger asChild>
                             <Button
                               variant="outline"
                               role="combobox"
                               aria-expanded={clothOpen}
-                              className="w-full justify-between"
+                              className="w-full justify-between overflow-hidden"
                             >
-                              {form.clothName ? (
-                                form.clothName
-                              ) : (
-                                <span className="text-muted-foreground">
-                                  Select...
-                                </span>
-                              )}
+                              <span className="truncate">
+                                {form.clothName || "Select..."}
+                              </span>
                               <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </PopoverTrigger>
+
                           <PopoverContent className="w-full p-0">
                             <Command>
                               <CommandInput
                                 placeholder="Search cloth..."
                                 onValueChange={(v) =>
-                                  setForm({
-                                    ...form,
-                                    clothName: v,
-                                  })
+                                  setForm({ ...form, clothName: v })
                                 }
                               />
                               <CommandList>
@@ -604,9 +656,8 @@ useEffect(() => {
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={async () => {
+                                      onClick={() => {
                                         if (!form.clothName) return;
-
                                         setClothOpen(false);
                                       }}
                                     >
@@ -615,11 +666,13 @@ useEffect(() => {
                                     </Button>
                                   </div>
                                 </CommandEmpty>
+
                                 <CommandGroup>
                                   {cloths.map((c) => (
                                     <CommandItem
                                       key={c.id}
                                       value={c.name}
+                                      className="truncate"
                                       onSelect={() => {
                                         setForm({
                                           ...form,
@@ -636,7 +689,7 @@ useEffect(() => {
                                             : "opacity-0"
                                         }`}
                                       />
-                                      {c.name}
+                                      <span className="truncate">{c.name}</span>
                                     </CommandItem>
                                   ))}
                                 </CommandGroup>
@@ -646,77 +699,78 @@ useEffect(() => {
                         </Popover>
                       </div>
 
-                      {/* Purchase Order (Dynamic based on Cloth Name) */}
-                      <div className="flex flex-col space-y-2">
-                        <Label htmlFor="po">Purchase Order</Label>
+                      {/* PURCHASE ORDER */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Purchase Order</Label>
+
                         <Popover open={poOpen} onOpenChange={setPoOpen}>
                           <PopoverTrigger asChild>
                             <Button
                               variant="outline"
                               role="combobox"
                               aria-expanded={poOpen}
-                              disabled={!form.clothName} 
-                              className={`w-full justify-between ${
-                                !form.clothName
-                                  ? "cursor-not-allowed opacity-60"
-                                  : ""
-                              }`}
+                              disabled={!form.clothName}
+                              className="w-full justify-between overflow-hidden text-left"
                             >
                               {selectedPO ? (
-                                <div className="flex flex-col items-start">
-                                  <span className="font-medium">
+                                <div className="flex flex-col items-start min-w-0">
+                                  <span className="truncate font-medium">
                                     {selectedPO.poNumber}
                                   </span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {selectedPO.designName ||""} •{" "}
-                                    {selectedPO.fabricatorName||""}
+                                  <span className="text-xs text-muted-foreground truncate">
+                                    {selectedPO.designName} •{" "}
+                                    {selectedPO.fabricatorName}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-muted-foreground">
+                                <span className="text-muted-foreground truncate">
                                   {form.clothName
                                     ? "Select purchase order..."
                                     : "Select cloth first"}
                                 </span>
                               )}
-                              <ChevronsUpDownIcon className=" h-4 w-4 shrink-0 opacity-50" />
+                              <ChevronsUpDownIcon className="h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </PopoverTrigger>
 
-                          <PopoverContent className="w-[350px] p-0">
+                          <PopoverContent className="w-[330px] p-0">
                             <Command>
                               <CommandInput placeholder="Search purchase order..." />
                               <CommandList>
                                 <CommandEmpty>
                                   No purchase order found.
                                 </CommandEmpty>
+
                                 <CommandGroup>
-                                  {POs
-                                    .map((po) => (
-                                      <CommandItem
-                                        key={po.id}
-                                        value={po.poNumber}
-                                        onSelect={() => {
-                                          setSelectedPO(po);
-                                          setPoOpen(false);
-                                          setForm({...form,totalMeter:po.quantity,price:po.purchaseRate})
-                                          
-                                        }}
-                                      >
-                                        <div className="flex flex-col cursor-pointer">
-                                          <span className="font-medium">
-                                            {po.poNumber}
-                                          </span>
-                                          <span className="text-xs text-muted-foreground">
-                                            {po.designName} • {po.fabricatorName}
-                                          </span>
-                                          <span className="text-xs text-gray-500">
-                                            Qty: {po.quantity} | Rate: ₹
-                                            {po.purchaseRate}
-                                          </span>
-                                        </div>
-                                      </CommandItem>
-                                    ))}
+                                  {POs.map((po) => (
+                                    <CommandItem
+                                      key={po.id}
+                                      value={po.poNumber}
+                                      className="truncate"
+                                      onSelect={() => {
+                                        setSelectedPO(po);
+                                        setPoOpen(false);
+                                        setForm({
+                                          ...form,
+                                          totalMeter: po.quantity,
+                                          price: po.purchaseRate,
+                                        });
+                                      }}
+                                    >
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="truncate font-medium">
+                                          {po.poNumber}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground truncate">
+                                          {po.designName} • {po.fabricatorName}
+                                        </span>
+                                        <span className="text-xs text-gray-500 truncate">
+                                          Qty: {po.quantity} | Rate: ₹
+                                          {po.purchaseRate}
+                                        </span>
+                                      </div>
+                                    </CommandItem>
+                                  ))}
                                 </CommandGroup>
                               </CommandList>
                             </Command>
@@ -724,14 +778,12 @@ useEffect(() => {
                         </Popover>
                       </div>
 
-                      {/* Total meter */}
-                      <div className="flex flex-col space-y-2">
-                        <Label htmlFor="totmeter">Total Meter</Label>
+                      {/* TOTAL METER */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Total Meter</Label>
                         <Input
-                          id="totmeter"
-                          name="totmeter"
                           placeholder="Enter total meter..."
-                          className="w-full"
+                          className="w-full truncate"
                           value={form.totalMeter}
                           onChange={(e) =>
                             setForm({ ...form, totalMeter: e.target.value })
@@ -739,14 +791,12 @@ useEffect(() => {
                         />
                       </div>
 
-                      {/* Total price */}
-                      <div className="flex flex-col space-y-2">
-                        <Label htmlFor="totprice">Price</Label>
+                      {/* PRICE */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Price</Label>
                         <Input
-                          id="totprice"
-                          name="totprice"
                           placeholder="Enter price..."
-                          className="w-full"
+                          className="w-full truncate"
                           value={form.price}
                           onChange={(e) =>
                             setForm({ ...form, price: e.target.value })
@@ -757,7 +807,7 @@ useEffect(() => {
                   </AccordionContent>
                 </AccordionItem>
 
-                {/* Shirt Details */}
+                {/* ------------------ SHIRT DETAILS ------------------ */}
                 <AccordionItem
                   value="shirtdetails"
                   className="border border-gray-200 rounded-xl shadow-sm bg-white my-2"
@@ -765,38 +815,34 @@ useEffect(() => {
                   <AccordionTrigger className="text-md font-semibold px-4 py-2 text-gray-800 cursor-pointer hover:text-indigo-700">
                     Shirt Details
                   </AccordionTrigger>
+
                   <AccordionContent className="p-4 text-gray-600 bg-gray-50 rounded-b-xl">
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {/* design Name */}
-                      <div className="flex flex-col space-y-2">
-                        <Label htmlFor="designname">Design</Label>
+                      {/* DESIGN */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Design</Label>
+
                         <Popover open={designOpen} onOpenChange={setDesignOpen}>
                           <PopoverTrigger asChild>
                             <Button
                               variant="outline"
                               role="combobox"
                               aria-expanded={designOpen}
-                              className="w-full justify-between"
+                              className="w-full justify-between overflow-hidden"
                             >
-                              {form.designName ? (
-                                form.designName
-                              ) : (
-                                <span className="text-muted-foreground">
-                                  Select...
-                                </span>
-                              )}
+                              <span className="truncate">
+                                {form.designName || "Select..."}
+                              </span>
                               <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </PopoverTrigger>
+
                           <PopoverContent className="w-full p-0">
                             <Command>
                               <CommandInput
                                 placeholder="Search design..."
                                 onValueChange={(v) =>
-                                  setForm({
-                                    ...form,
-                                    designName: v,
-                                  })
+                                  setForm({ ...form, designName: v })
                                 }
                               />
                               <CommandList>
@@ -808,9 +854,8 @@ useEffect(() => {
                                     <Button
                                       variant="outline"
                                       size="sm"
-                                      onClick={async () => {
+                                      onClick={() => {
                                         if (!form.designName) return;
-
                                         setDesignOpen(false);
                                       }}
                                     >
@@ -819,28 +864,30 @@ useEffect(() => {
                                     </Button>
                                   </div>
                                 </CommandEmpty>
+
                                 <CommandGroup>
-                                  {designs.map((c) => (
+                                  {designs.map((d) => (
                                     <CommandItem
-                                      key={c.id}
-                                      value={c.name}
+                                      key={d.id}
+                                      value={d.name}
+                                      className="truncate"
                                       onSelect={() => {
                                         setForm({
                                           ...form,
-                                          designName: c.name,
-                                          designId: c.id,
+                                          designName: d.name,
+                                          designId: d.id,
                                         });
                                         setDesignOpen(false);
                                       }}
                                     >
                                       <CheckIcon
                                         className={`mr-2 h-4 w-4 ${
-                                          form.designName === c.name
+                                          form.designName === d.name
                                             ? "opacity-100"
                                             : "opacity-0"
                                         }`}
                                       />
-                                      {c.name}
+                                      <span className="truncate">{d.name}</span>
                                     </CommandItem>
                                   ))}
                                 </CommandGroup>
@@ -850,33 +897,27 @@ useEffect(() => {
                         </Popover>
                       </div>
 
-                      {/* average */}
-
-                      <div className="flex flex-col space-y-2">
-                        <Label htmlFor="average">Average</Label>
+                      {/* AVERAGE */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Average</Label>
                         <Input
-                          id="average"
-                          name="average"
-                          // value={form.average}
+                          placeholder="Enter average..."
+                          className="w-full truncate"
                           onChange={(e) =>
                             setForm({ ...form, average: e.target.value })
                           }
-                          placeholder="Enter average..."
-                          className="w-full"
                         />
                       </div>
-                      {/* fabrication */}
-                      <div className="flex flex-col space-y-2">
-                        <Label htmlFor="fabrication">Fabrication</Label>
+
+                      {/* FABRICATION */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Fabrication</Label>
                         <Input
-                          id="fabrication"
-                          name="fabrication"
-                          // value={form.fabrication}
+                          placeholder="Enter fabrication..."
+                          className="w-full truncate"
                           onChange={(e) =>
                             setForm({ ...form, fabrication: e.target.value })
                           }
-                          placeholder="Enter fabrication..."
-                          className="w-full"
                         />
                       </div>
 
@@ -889,7 +930,7 @@ useEffect(() => {
                           onOpenChange={(isOpen) => {
                             setExpenseOpen(isOpen);
                             if (isOpen && expenses.length === 0) {
-                              fetchExpenses(); 
+                              fetchExpenses();
                             }
                           }}
                         >
@@ -933,15 +974,13 @@ useEffect(() => {
                                         className="w-full justify-between text-left font-normal"
                                       >
                                         {expenseToAdd ? (
-                                          expenses.find(
-                                            (e) => e.value === expenseToAdd
-                                          )?.label
+                                          expenseToAdd
                                         ) : (
                                           <span className="text-muted-foreground">
                                             -- Select expense --
                                           </span>
                                         )}
-                                        <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        <ChevronsUpDownIcon className="ml-2 h-4 w-4 opacity-50" />
                                       </Button>
                                     </PopoverTrigger>
 
@@ -952,27 +991,38 @@ useEffect(() => {
                                           value={expenseToAdd}
                                           onValueChange={setExpenseToAdd}
                                         />
+
                                         <CommandList>
                                           <CommandEmpty>
                                             <div className="flex flex-col items-center gap-2 py-3">
                                               <p className="text-sm text-muted-foreground">
                                                 No expense found.
                                               </p>
-                                              {expenseSaving?<Button variant={"outline"} size="sm" disabled>Adding...</Button>:
-                                              <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={async () => {
-                                                  if (!expenseToAdd.trim())
-                                                    return;
-                                                  await handleAddNewExpense(
-                                                    expenseToAdd.trim()
-                                                  );
-                                                }}
-                                              >
-                                                <CirclePlus className="w-4 h-4 mr-1" />
-                                                Add “{expenseToAdd}”
-                                              </Button>}
+
+                                              {expenseSaving ? (
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  disabled
+                                                >
+                                                  Adding...
+                                                </Button>
+                                              ) : (
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  onClick={async () => {
+                                                    if (!expenseToAdd.trim())
+                                                      return;
+                                                    await handleAddNewExpense(
+                                                      expenseToAdd.trim()
+                                                    );
+                                                  }}
+                                                >
+                                                  <CirclePlus className="w-4 h-4 mr-1" />{" "}
+                                                  Add “{expenseToAdd}”
+                                                </Button>
+                                              )}
                                             </div>
                                           </CommandEmpty>
 
@@ -987,24 +1037,17 @@ useEffect(() => {
                                               .map((ex) => (
                                                 <CommandItem
                                                   key={ex.value}
-                                                  value={ex.value}
-                                                  onSelect={(currentValue) => {
-                                                    setExpenseToAdd(
-                                                      currentValue ===
-                                                        expenseToAdd
-                                                        ? ""
-                                                        : currentValue
-                                                    );
+                                                  value={ex.label}
+                                                  onSelect={() => {
+                                                    handleAddExpense({
+                                                      target: {
+                                                        value: ex.value,
+                                                      },
+                                                    });
+                                                    setExpenseToAdd("");
                                                     setExpenseComboOpen(false);
                                                   }}
                                                 >
-                                                  <CheckIcon
-                                                    className={`mr-2 h-4 w-4 ${
-                                                      expenseToAdd === ex.value
-                                                        ? "opacity-100"
-                                                        : "opacity-0"
-                                                    }`}
-                                                  />
                                                   {ex.label}
                                                 </CommandItem>
                                               ))}
@@ -1085,27 +1128,37 @@ useEffect(() => {
                         </Dialog>
                       </div>
 
-                      {/* costing */}
-                      <div className="flex flex-col space-y-2">
-                        <Label htmlFor="costing">Costing</Label>
+                      {/* COSTING */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Costing</Label>
                         <Input
-                          id="costing"
-                          name="costing"
-                          // value={form.costing}
+                          placeholder="Enter costing..."
+                          className="w-full truncate"
                           onChange={(e) =>
                             setForm({ ...form, costing: e.target.value })
                           }
-                          placeholder="Enter costing..."
-                          className="w-full"
+                        />
+                      </div>
+                      {/* SALE PRICE */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Sale Price</Label>
+                        <Input
+                          placeholder="Enter sale price..."
+                          className="w-full truncate"
+                          onChange={(e) =>
+                            setForm({ ...form, salePrice: e.target.value })
+                          }
                         />
                       </div>
                     </div>
+
+                    {/* BESTSELLER */}
                     <Toggle
                       pressed={form.isBestSeller}
                       onPressedChange={(p) =>
                         setForm({ ...form, isBestSeller: p })
                       }
-                      className=" data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-yellow-500 data-[state=on]:*:[svg]:stroke-yellow-500 cursor-pointer mt-2"
+                      className="mt-2 data-[state=on]:*:[svg]:fill-yellow-500 data-[state=on]:*:[svg]:stroke-yellow-500"
                     >
                       <StarIcon />
                       Bestseller
@@ -1118,7 +1171,11 @@ useEffect(() => {
             {/* Footer Buttons */}
             <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 sm:gap-2">
               <DialogClose asChild>
-                <Button variant="outline" className="w-full sm:w-auto" onClick={handleCancel}>
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={handleCancel}
+                >
                   Cancel
                 </Button>
               </DialogClose>
@@ -1128,7 +1185,7 @@ useEffect(() => {
                 </Button>
               ) : (
                 <Button type="submit" className="w-full sm:w-auto">
-                  Save changes
+                  Save
                 </Button>
               )}
             </DialogFooter>

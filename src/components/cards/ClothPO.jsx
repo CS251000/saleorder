@@ -23,7 +23,7 @@ export default function ClothPO({purchaseOrder,onComplete}) {
           <CardDescription>
             <div className='flex flex-col space-y-2'>
             <span>Agent: {purchaseOrder.agentName}</span>
-            <span>Mill: {purchaseOrder.millName}</span>
+            <span>Category: {purchaseOrder.categoryName}</span>
             </div>
             </CardDescription>
           

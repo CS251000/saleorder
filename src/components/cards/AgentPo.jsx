@@ -23,7 +23,7 @@ export default function AgentPO({purchaseOrder,onComplete}) {
           <CardDescription>
             <div className='flex flex-col space-y-2'>
             <span>Cloth: {purchaseOrder.clothName}</span>
-            <span>Mill: {purchaseOrder.millName}</span>
+            <span>Category: {purchaseOrder.categoryName}</span>
             </div>
             </CardDescription>
           

@@ -6,6 +6,7 @@ import { FilterJobOrder } from "@/components/filterJobOrder";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useProdManager } from "@/context/ProdManagerContext";
 import { useGlobalUser } from "@/context/UserContext";
 import { useParams } from "next/navigation";
 import React, { useState, useMemo } from "react";
@@ -25,6 +26,7 @@ export default function FabricatorDashboardPage() {
   const managerId= currentUser?.id;
   const [searchTerm, setSearchTerm] = useState("");
   const [showType, setShowType] = useState("all");
+  const {fabricators}= useProdManager();
 
   /* ----------------------------- 💾 Fetch Data ----------------------------- */
   const {
@@ -105,7 +107,9 @@ export default function FabricatorDashboardPage() {
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h2 className="font-bold text-3xl break-words">
-          {jobSlips?.[0]?.fabricatorName || "Fabricator Dashboard"}
+          {jobSlips?.[0]?.fabricatorName ||
+            fabricators.find((f) => f.id === fabricatorId)?.name ||
+            "Fabricator Dashboard"}
         </h2>
 
         {/* Search Bar */}

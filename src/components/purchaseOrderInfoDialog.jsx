@@ -76,7 +76,7 @@ export default function PurchaseOrderInfoDialog({ open, setOpen, po }) {
           <Card className="border border-gray-200 shadow-sm">
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 py-3">
               <InfoItem title="Agent" value={po.agentName || "-"} />
-              <InfoItem title="Mill" value={po.millName || "-"} />
+              <InfoItem title="Category" value={po.categoryName || "-"} />
               <InfoItem title="Fabricator" value={po.fabricatorName || "-"} />
             </CardContent>
           </Card>

@@ -136,40 +136,40 @@ export const ProdManagerProvider = ({ children }) => {
     [managerId, mutateDesigns]
   );
 
-  /* ----------------------------- 🏭 MILLS ----------------------------- */
+  /* ----------------------------- 🏭 Categories ----------------------------- */
   const {
-    data: millData,
-    error: millError,
-    isLoading: loadingMills,
-    mutate: mutateMills,
+    data: categoryData,
+    error: categoryError,
+    isLoading: loadingCategories,
+    mutate: mutateCategories,
   } = useSWR(
-    managerId ? `/api/mills?managerId=${managerId}` : null,
+    managerId ? `/api/category?managerId=${managerId}` : null,
     fetcher,
     { revalidateOnFocus: true, dedupingInterval: 60 * 1000 }
   );
 
-  const getMills = useCallback(() => mutateMills(), [mutateMills]);
+  const getCategories = useCallback(() => mutateCategories(), [mutateCategories]);
 
-  const addMill = useCallback(
+  const addCategory = useCallback(
     async (name) => {
       if (!name || !managerId) return;
-      const res = await fetch("/api/mills", {
+      const res = await fetch("/api/category", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ millName: name, managerId }),
+        body: JSON.stringify({ categoryName: name, managerId }),
       });
       const data = await res.json();
       if (res.ok) {
-        const newMill = { id: data.mill.millId, name };
-        mutateMills(
-          (prev) => ({ mills: [...(prev?.mills || []), newMill] }),
+        const newCategory = { id: data.category.categoryId, name };
+        mutateCategories(
+          (prev) => ({ categories: [...(prev?.categories || []), newCategory] }),
           false
         );
-        mutateMills();
-        return newMill;
-      } else console.error("Error adding mill:", data.error);
+        mutateCategories();
+        return newCategory;
+      } else console.error("Error adding category:", data.error);
     },
-    [managerId, mutateMills]
+    [managerId, mutateCategories]
   );
 
   /* -------------------------- 🧾 CLOTH BUY AGENTS -------------------------- */
@@ -229,12 +229,12 @@ export const ProdManagerProvider = ({ children }) => {
         loadingDesigns,
         getDesigns,
         addDesign,
-
-        // Mills
-        mills: millData?.mills || [],
-        loadingMills,
-        getMills,
-        addMill,
+        
+        // Categories
+        categories: categoryData?.categories || [],
+        loadingCategories,
+        getCategories,
+        addCategory,
 
         // Cloth Buy Agents
         clothBuyAgents: agentData?.agents || [],

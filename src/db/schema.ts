@@ -1,11 +1,12 @@
 import { sql } from "drizzle-orm";
-import { boolean, date, index, integer, jsonb, numeric, pgEnum, pgTable, serial, text, unique, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, date, index, integer, jsonb, numeric, pgEnum, pgTable, text, unique, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 
 export const roleEnum = pgEnum("role", ["Manager", "Admin","Employee"]);
 export const saleOrderStatus= pgEnum("status",["Dispatched","Pending"]);
 export const jobSlipStatus= pgEnum("Job_slip_status",["Pending","Completed"]);
 export const plans= pgEnum("plan_names",["EazyCore","EazyPro","EazyElite"]);
+export const paymentStatus=pgEnum("payment_status",["Paid","Pending","Failed"]);
 
 export const users= pgTable("users", {
   id: uuid("id").default(sql`gen_random_uuid()`).primaryKey(),
@@ -16,13 +17,36 @@ export const users= pgTable("users", {
   username: varchar("username"),
   firstName: text("first_name"),
   lastName: text("last_name"),
-  planName:plans("plan_name"),
   organization : uuid("organization").references(()=>organizations.id),
   role: roleEnum("role"),
   age: integer("age")
 },(t)=>[
   uniqueIndex("clerk_user_index").on(t.clerkId)
 ]);
+export const subscriptions = pgTable("subscriptions", {
+  id: uuid("id").default(sql`gen_random_uuid()`).primaryKey(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  planName: plans("plan_name").notNull(),
+  startDate: date("start_date").defaultNow(),
+  endDate: date("end_date").notNull(),
+  isActive: boolean("is_active").default(true),
+  autoRenew: boolean("auto_renew").default(true),
+  paymentStatus: varchar("payment_status").default("paid")
+},(t)=>[
+  index("user_subscription_index").on(t.userId)
+]);
+
+
+export const usage=pgTable("usage",{
+  id:uuid("id").default(sql`gen_random_uuid()`).primaryKey(),
+  userId:uuid("user_id").references(()=>users.id),
+  startDate:date("start_date").defaultNow(),
+  tasksPerMonth:integer("tasks_per_month"),
+  jobOrdersPerMonthLimit:integer("job_orders_per_month_limit"),
+  purchaseOrdersPerMonthLimit:integer("purchase_orders_per_month_limit")
+},(t)=>[
+  index("user_usage_index").on(t.userId)
+])
 
 export const employees = pgTable("employees", {
   id: uuid("id").default(sql`gen_random_uuid()`).primaryKey(),
@@ -126,13 +150,13 @@ export const clothBuyAgents=pgTable("buy_agents",{
   unique("clothAgent_per_manager").on(t.managerId,t.name)
 ]);
 
-export const mills=pgTable("mills",{
+export const categories=pgTable("categories",{
   id:uuid("id").default(sql`gen_random_uuid()`).primaryKey(),
   name:varchar("name").notNull(),
   managerId:uuid("manager_id").notNull().references(()=>users.id)
 },(t)=>[
-  index("manager_mill_index").on(t.managerId),
-  unique("mill_per_manager").on(t.managerId,t.name)
+  index("manager_category_index").on(t.managerId),
+  unique("category_per_manager").on(t.managerId,t.name)
 ]);
 
 
@@ -150,6 +174,7 @@ export const jobOrder= pgTable("job_order",{
   average:numeric("average").default("0.0"),
   fabrication:numeric("fabrication").default("0.0"),
   costing:numeric("costing").default("0.0"),
+  salePrice:numeric("sale_price").default("0.0"),
   isBestSeller:boolean("is_best_seller").default(false),
   expenses: jsonb("expenses").$type<{ expenseId: number; amount: number }[]>().default(sql`'[]'::jsonb`),
   status: jobSlipStatus("status").default("Pending")
@@ -175,10 +200,11 @@ export const purchaseOrder=pgTable("purchase_order",{
   managerId:uuid("manager_id").notNull().references(()=>users.id),
   orderDate:date("order_date").defaultNow(),
   agentId:uuid("agent_id").references(()=>clothBuyAgents.id),
-  millId:uuid("mills_id").references(()=>mills.id),
+  categoryId:uuid("category_id").references(()=>categories.id),
   clothId:uuid("cloth_id").references(()=>cloths.id),
   purchaseRate:numeric("price").default("0.0"),
   quantity:numeric("quantity"),
+  description:text("description"),
   dueDate:date("due_date").defaultNow(),
   designId:uuid("design_id").references(()=>designs.id),
   fabricatorId:uuid("fabricator_id").references(()=>fabricators.id),
@@ -187,6 +213,8 @@ export const purchaseOrder=pgTable("purchase_order",{
   uniqueIndex("po_number_index").on(t.POnumber),
   index("agent_wise_index").on(t.agentId),
   index("cloth_wise_index").on(t.clothId),
+  index("design_wise__po_index").on(t.designId),
+  index("fabricator_wise_po_index").on(t.fabricatorId),
   index("manager_wise_purchase_orders")
 ])
 

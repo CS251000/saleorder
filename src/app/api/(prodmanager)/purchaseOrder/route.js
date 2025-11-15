@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { clothBuyAgents, cloths, designs, fabricators, mills, purchaseOrder } from "@/db/schema";
+import { clothBuyAgents, cloths, designs, fabricators, categories, purchaseOrder } from "@/db/schema";
 import { sql, eq } from "drizzle-orm";
 
 export async function POST(req) {
@@ -10,12 +10,13 @@ export async function POST(req) {
       POnumber,
       date,
       agentId,
-      millId,
+      categoryId,
       clothId,
       designId,
       fabricatorId,
       purchaseRate,
       quantity,
+      description,
       dueDate,
       managerId,
     } = body;
@@ -32,12 +33,13 @@ export async function POST(req) {
       POnumber: POnumber ?? null,
       orderDate: date ? new Date(date).toISOString() : new Date().toISOString(),
       agentId: agentId || null,
-      millId: millId || null,
+      categoryId: categoryId || null,
       clothId: clothId,
       designId: designId || null,
       fabricatorId: fabricatorId || null,
       purchaseRate: purchaseRate !== undefined && purchaseRate !== null ? Number(purchaseRate) : 0.0,
       quantity: quantity !== undefined && quantity !== null ? Number(quantity) : 0,
+      description: description || null,
       dueDate: dueDate ? new Date(dueDate).toISOString() : null,
       managerId: managerId,
 
@@ -66,33 +68,7 @@ export async function POST(req) {
           .where(eq(cloths.id, clothId))
       );
 
-      // Design (if provided)
-      // if (designId) {
-      //   updates.push(
-      //     tx
-      //       .update(designs)
-      //       .set({
-      //         total: sql`COALESCE(${designs.total}, 0) + 1`,
-      //         pending: sql`COALESCE(${designs.pending}, 0) + 1`,
-      //       })
-      //       .where(eq(designs.id, designId))
-      //   );
-      // }
-
-      // Fabricator (if provided)
-      // if (fabricatorId) {
-      //   updates.push(
-      //     tx
-      //       .update(fabricators)
-      //       .set({
-      //         total: sql`COALESCE(${fabricators.total}, 0) + 1`,
-      //         pending: sql`COALESCE(${fabricators.pending}, 0) + 1`,
-      //       })
-      //       .where(eq(fabricators.id, fabricatorId))
-      //   );
-      // }
-
-      // Buy agent (if provided)
+      
       if (agentId) {
         updates.push(
           tx
@@ -144,6 +120,8 @@ export async function GET(req) {
     const managerId = searchParams.get("managerId");
     const clothId = searchParams.get("clothId");
     const agentId = searchParams.get("agentId");
+    const designId = searchParams.get("designId");
+    const fabricatorId = searchParams.get("fabricatorId");
 
     if (!managerId) {
       return NextResponse.json(
@@ -151,7 +129,6 @@ export async function GET(req) {
         { status: 400 }
       );
     }
-    // ✅ Query with LEFT JOINS for related names
     let query = db
       .select({
         id: purchaseOrder.id,
@@ -160,19 +137,20 @@ export async function GET(req) {
         dueDate: purchaseOrder.dueDate,
         purchaseRate: purchaseOrder.purchaseRate,
         quantity: purchaseOrder.quantity,
+        description: purchaseOrder.description,
         status: purchaseOrder.status,
         clothId:purchaseOrder.clothId,
         agentId:purchaseOrder.agentId,
         clothName: cloths.name,
         agentName: clothBuyAgents.name,
-        millName: mills.name,
+        categoryName: categories.name,
         fabricatorName: fabricators.name,
         designName: designs.name,
       })
       .from(purchaseOrder)
       .leftJoin(cloths, eq(purchaseOrder.clothId, cloths.id))
       .leftJoin(clothBuyAgents, eq(purchaseOrder.agentId, clothBuyAgents.id))
-      .leftJoin(mills, eq(purchaseOrder.millId, mills.id))
+      .leftJoin(categories, eq(purchaseOrder.categoryId, categories.id))
       .leftJoin(fabricators, eq(purchaseOrder.fabricatorId, fabricators.id))
       .leftJoin(designs, eq(purchaseOrder.designId, designs.id))
       .where(eq(managerId,purchaseOrder.managerId));
@@ -183,6 +161,14 @@ export async function GET(req) {
       if(agentId){
         query=query.where(eq(agentId,purchaseOrder.agentId));
       }
+      if(designId){
+        query=query.where(eq(designId,purchaseOrder.designId));
+      }
+      if(fabricatorId){
+        query=query.where(eq(fabricatorId,purchaseOrder.fabricatorId));
+      }
+      
+
 
       const results= await query;
 

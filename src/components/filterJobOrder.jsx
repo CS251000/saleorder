@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { CirclePlus } from "lucide-react"
+import { CirclePlus, ListFilter } from "lucide-react"
 
 export function FilterJobOrder() {
   return (
@@ -19,8 +19,8 @@ export function FilterJobOrder() {
       <form>
         <DialogTrigger asChild>
           <Button variant="outline">
-            <CirclePlus />
-            Filter Job Order 
+            <ListFilter />
+            Filter
             </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-[425px]">

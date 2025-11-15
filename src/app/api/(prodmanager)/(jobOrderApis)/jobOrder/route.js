@@ -21,6 +21,7 @@ export async function POST(req) {
       average,
       fabrication,
       costing,
+      salePrice,
       isBestSeller,
       expenses = [],
     } = body;
@@ -48,6 +49,7 @@ export async function POST(req) {
       average: average?.toString() || "0.0",
       fabrication: fabrication?.toString() || "0.0",
       costing: costing?.toString() || "0.0",
+      salePrice: salePrice?.toString() || "0.0",
       isBestSeller: !!isBestSeller,
       expenses: JSON.stringify(expenses),
     };
@@ -57,19 +59,6 @@ export async function POST(req) {
       const [createdJob] = await tx.insert(jobOrder).values(newJob).returning();
 
       const updates = [];
-
-      // 🧵 Update related entities: increment total & pending by 1
-      // if (clothId) {
-      //   updates.push(
-      //     tx
-      //       .update(cloths)
-      //       .set({
-      //         total: sql`COALESCE(${cloths.total}, 0) + 1`,
-      //         pending: sql`COALESCE(${cloths.pending}, 0) + 1`,
-      //       })
-      //       .where(eq(cloths.id, clothId))
-      //   );
-      // }
 
       if (designId) {
         updates.push(
@@ -151,6 +140,7 @@ export async function GET(req) {
       average: jobOrder.average,
       fabrication: jobOrder.fabrication,
       costing: jobOrder.costing,
+      salePrice: jobOrder.salePrice,
       isBestSeller: jobOrder.isBestSeller,
       expenses: jobOrder.expenses,
       status: jobOrder.status,
@@ -208,6 +198,7 @@ export async function PUT(req) {
       average,
       fabrication,
       costing,
+      salePrice,
       isBestSeller,
       expenses = [],
     } = body;
@@ -244,6 +235,7 @@ export async function PUT(req) {
           average: average ?? 0,
           fabrication: fabrication ?? 0,
           costing: costing ?? 0,
+          salePrice: salePrice ?? 0,
           isBestSeller: !!isBestSeller,
           expenses: formattedExpenses, 
         })

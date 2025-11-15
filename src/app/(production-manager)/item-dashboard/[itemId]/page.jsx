@@ -1,9 +1,19 @@
 "use client";
 
 import { AddJobOrderForm } from "@/components/addJobOrder";
+import ClothPO from "@/components/cards/ClothPO";
 import ItemJobSlipCard from "@/components/cards/ItemJobSlip";
 import { FilterJobOrder } from "@/components/filterJobOrder";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProdManager } from "@/context/ProdManagerContext";
@@ -23,7 +33,7 @@ export default function ItemDashboardPage() {
   const params = useParams();
   const { itemId } = params;
   const { currentUser } = useGlobalUser();
-  const managerId= currentUser?.id;
+  const managerId = currentUser?.id;
   const { designs } = useProdManager();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -43,6 +53,22 @@ export default function ItemDashboardPage() {
     {
       revalidateOnFocus: true, // refresh when tab is refocused
       dedupingInterval: 60 * 1000, // no duplicate requests within 1 minute
+    }
+  );
+
+  const {
+    data: purchaseOrders = [],
+    error: poError,
+    isLoading: poLoading,
+    mutate: mutatePOs,
+  } = useSWR(
+    currentUser?.id && itemId
+      ? `/api/purchaseOrder?managerId=${currentUser.id}&designId=${itemId}`
+      : null,
+    fetcher,
+    {
+      revalidateOnFocus: true,
+      dedupingInterval: 60 * 1000,
     }
   );
 
@@ -71,52 +97,128 @@ export default function ItemDashboardPage() {
     mutate();
   };
 
+  async function handleCompletePO(purchaseOrder) {
+      const confirmComplete = window.confirm(
+      `Are you sure you want to mark PO ${purchaseOrder.POnumber||""} as Completed?`
+    );
+  
+    if (!confirmComplete) return; 
+    try {
+      const res = await fetch(`/api/purchaseOrder`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          POid:purchaseOrder.id,
+          POnumber : purchaseOrder.poNumber,
+          clothId: purchaseOrder.clothId,
+          agentId: purchaseOrder.agentId }),
+      });
+  
+      if (!res.ok) throw new Error("Failed to complete purchase order");
+  
+      mutatePOs();
+      globalMutate(`/api/clothBuyAgents?managerId=${managerId}`);
+      globalMutate(`/api/cloths?managerId=${managerId}`);
+  
+    } catch (error) {
+      console.error("Error completing job slip:", error);
+    }
+  }
+
   async function handleCompleteJobSlip(jobSlip) {
     const confirmComplete = window.confirm(
-    `Are you sure you want to mark Job Slip ${jobSlip.jobSlipNumber} as Completed?`
-  );
+      `Are you sure you want to mark Job Slip ${jobSlip.jobSlipNumber} as Completed?`
+    );
 
-  if (!confirmComplete) return; // ❌ User cancelled — do nothing
-  try {
-    const res = await fetch(`/api/jobOrder`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jobSlipNumber: jobSlip.jobSlipNumber,
-        designId: jobSlip.designId,
-        fabricatorId: jobSlip.fabricatorId, }),
-    });
+    if (!confirmComplete) return; // ❌ User cancelled — do nothing
+    try {
+      const res = await fetch(`/api/jobOrder`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobSlipNumber: jobSlip.jobSlipNumber,
+          designId: jobSlip.designId,
+          fabricatorId: jobSlip.fabricatorId,
+        }),
+      });
 
-    if (!res.ok) throw new Error("Failed to complete job slip");
+      if (!res.ok) throw new Error("Failed to complete job slip");
 
-    // ✅ Refresh the SWR state
-    mutate();
-    globalMutate(`/api/fabricators?managerId=${managerId}`);
-        globalMutate(`/api/designs?managerId=${managerId}`);
-
-  } catch (error) {
-    console.error("Error completing job slip:", error);
+      // ✅ Refresh the SWR state
+      mutate();
+      globalMutate(`/api/fabricators?managerId=${managerId}`);
+      globalMutate(`/api/designs?managerId=${managerId}`);
+    } catch (error) {
+      console.error("Error completing job slip:", error);
+    }
   }
-}
 
-
-
-  /* ----------------------------- 🖥️ Render ----------------------------- */
   if (!currentUser)
     return <div className="text-center text-gray-500">Loading user...</div>;
 
   return (
     <div className="p-6 space-y-6">
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="font-bold text-3xl break-words">
-          {jobSlips?.[0]?.designName ||
-            designs.find((d) => d.id === itemId)?.name ||
-            "Item Dashboard"}
-        </h2>
+      <div className="flex flex-col gap-3">
+        {/* Row 1: Title + Buttons on mobile, full split on desktop */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          {/* Title + Buttons (mobile row) */}
+          <div className="flex items-center justify-between w-full sm:w-auto">
+            <h2 className="font-bold text-3xl break-words">
+              {jobSlips?.[0]?.designName ||
+                designs.find((d) => d.id === itemId)?.name ||
+                "Item Dashboard"}
+            </h2>
 
-        {/* Search Input */}
-        <div className="relative w-full sm:w-80">
+            {/* Buttons only align here on mobile */}
+            <div className="flex sm:hidden gap-2">
+              <AddJobOrderForm
+                designId={itemId}
+                managerId={currentUser.id}
+                onSuccess={handleAddSuccess}
+              />
+              <FilterJobOrder />
+            </div>
+          </div>
+
+          {/* Desktop Search (2nd position) */}
+          <div className="hidden sm:block relative w-80">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="absolute top-0 bottom-0 w-6 h-6 my-auto text-gray-500 left-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <Input
+              type="text"
+              placeholder="Search job slips..."
+              className="pl-12 pr-4 w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          {/* Desktop Buttons (3rd position) */}
+          <div className="hidden sm:flex flex-row gap-3 flex-wrap justify-end">
+            <AddJobOrderForm
+              designId={itemId}
+              managerId={currentUser.id}
+              onSuccess={handleAddSuccess}
+            />
+            <FilterJobOrder />
+          </div>
+        </div>
+
+        {/* Mobile Searchbar (full width under title) */}
+        <div className="sm:hidden relative w-full">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className="absolute top-0 bottom-0 w-6 h-6 my-auto text-gray-500 left-3"
@@ -139,29 +241,66 @@ export default function ItemDashboardPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-
-        {/* Add & Filter Buttons */}
-        <div className="flex flex-row gap-3 flex-wrap justify-center sm:justify-end">
-          <AddJobOrderForm
-            designId={itemId}
-            managerId={currentUser.id}
-            onSuccess={handleAddSuccess}
-          />
-          <FilterJobOrder />
-        </div>
       </div>
 
       {/* Tabs Section */}
       <Card className="shadow-md p-4 w-full">
         <CardHeader className="p-0">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle className="text-lg font-semibold">Job Slips</CardTitle>
+          <div className="flex flex-row items-center justify-between gap-2 px-6">
+            {/* Title */}
+            <CardTitle className="text-xl font-semibold">Job Slips</CardTitle>
+
+            {/* Show PO Button */}
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant={"outline"}>Show PO</Button>
+              </DialogTrigger>
+
+              <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Purchase Orders</DialogTitle>
+                  <DialogDescription>
+                    All purchase orders linked to this design.
+                  </DialogDescription>
+                </DialogHeader>
+
+                {/* Loading */}
+                {poLoading && (
+                  <p className="text-center text-gray-500 py-4">
+                    Loading POs...
+                  </p>
+                )}
+
+                {/* Error */}
+                {poError && (
+                  <p className="text-center text-red-500 py-4">
+                    Failed to load purchase orders.
+                  </p>
+                )}
+
+                {/* Empty State */}
+                {!poLoading && purchaseOrders.length === 0 && (
+                  <p className="text-center text-gray-500 py-4">
+                    No Purchase Orders Found.
+                  </p>
+                )}
+
+                {/* PO List */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                  {purchaseOrders.filter((po)=>po.status=="Pending").map((po) => (
+                    <ClothPO key={po.id} purchaseOrder={po} onComplete={handleCompletePO} />
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </CardHeader>
-        <CardContent className="flex flex-row gap-4">
+
+        {/* Tabs Section */}
+        <CardContent className="mt-4">
           <div className="w-full flex justify-center sm:justify-start">
-            <Tabs defaultValue="all" className="w-full sm:w-auto rounded-md p-1">
-              <TabsList className="flex flex-row justify-around w-full sm:w-auto">
+            <Tabs defaultValue="all" className="w-full sm:w-auto">
+              <TabsList className="flex flex-row justify-around w-full sm:w-auto bg-gray-100 p-1 rounded-lg">
                 <TabsTrigger value="all" onClick={() => setShowType("all")}>
                   All
                 </TabsTrigger>

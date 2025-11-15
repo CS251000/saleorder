@@ -40,22 +40,23 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { format } from "date-fns";
+import { addDays, differenceInCalendarDays, format } from "date-fns";
 import { ScrollArea } from "./ui/scroll-area";
 import { useProdManager } from "@/context/ProdManagerContext";
 import { useGlobalUser } from "@/context/UserContext";
 import toast from "react-hot-toast";
+import { Textarea } from "./ui/textarea";
 
-export function AddPurchaseOrderForm({ clothId, agentId,onSuccess }) {
+export function AddPurchaseOrderForm({ clothId, agentId, onSuccess }) {
   const [agentOpen, setAgentOpen] = useState(false);
-  const [millOpen, setMillOpen] = useState(false);
+  const [categoryOpen, setCategoryOpen] = useState(false);
   const [clothOpen, setClothOpen] = useState(false);
   const [designOpen, setDesignOpen] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const [saving,setSaving]= useState(false);
-
-  const {currentUser}= useGlobalUser();
+  const { currentUser } = useGlobalUser();
 
   const {
     // Fabricators
@@ -67,33 +68,34 @@ export function AddPurchaseOrderForm({ clothId, agentId,onSuccess }) {
     // Designs
     designs,
     addDesign,
-    // Mills
-    mills,
-    addMill,
+    // Categories
+    categories,
+    addCategory,
     // Cloth Buy Agents
     clothBuyAgents,
     addClothBuyAgent,
   } = useProdManager();
 
   const initialFormState = () => ({
-  POnumber: "",
-  date: new Date(),
-  agentId: null,
-  agentName: "",
-  millId: null,
-  millName: "",
-  clothId: null,
-  clothName: "",
-  designId: null,
-  designName: "",
-  fabricatorId: null,
-  fabricatorName: "",
-  purchaseRate: "",
-  quantity: "",
-  dueDate: null,
-  managerId: currentUser?.id
-});
-
+    POnumber: "",
+    date: new Date(),
+    agentId: null,
+    agentName: "",
+    categoryId: null,
+    categoryName: "",
+    clothId: null,
+    clothName: "",
+    designId: null,
+    designName: "",
+    fabricatorId: null,
+    fabricatorName: "",
+    purchaseRate: "",
+    quantity: "",
+    description: "",
+    dueDate: null,
+    dueDays: "",
+    managerId: currentUser?.id,
+  });
 
   const [form, setForm] = useState(initialFormState);
 
@@ -118,15 +120,15 @@ export function AddPurchaseOrderForm({ clothId, agentId,onSuccess }) {
     }
   }, [agentId, clothId, clothBuyAgents, cloths]);
 
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       setSaving(true);
       let {
         agentId,
         agentName,
-        millId,
-        millName,
+        categoryId,
+        categoryName,
         clothId,
         clothName,
         designId,
@@ -140,9 +142,9 @@ const handleSubmit = async (e) => {
         const newAgent = await addClothBuyAgent(agentName);
         agentId = newAgent?.id || agentName;
       }
-      if (!millId && millName) {
-        const newMill = await addMill(millName);
-        millId = newMill?.id || millName;
+      if (!categoryId && categoryName) {
+        const newCategory = await addCategory(categoryName);
+        categoryId = newCategory?.id || categoryName;
       }
       if (!clothId && clothName) {
         const newCloth = await addCloth(clothName);
@@ -161,50 +163,53 @@ const handleSubmit = async (e) => {
       const finalOrder = {
         ...form,
         agentId,
-        millId,
+        categoryId,
         clothId,
         designId,
         fabricatorId,
       };
-      console.log("form",finalOrder);
-      const res= await fetch("/api/purchaseOrder",{
-        method:"POST",
+      console.log("form", finalOrder);
+      const res = await fetch("/api/purchaseOrder", {
+        method: "POST",
         headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(finalOrder),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(finalOrder),
       });
-      if(!res.ok){
+      if (!res.ok) {
         throw new Error(`Server error: ${res.status}`);
       }
 
-    const data = await res.json();
-    toast.success("Purchase order created successfully");
-    setForm(initialFormState);
+      const data = await res.json();
+      toast.success("Purchase order created successfully");
+      setForm(initialFormState);
 
-    if(onSuccess){
-      onSuccess();
-    }
-    
-
+      if (onSuccess) {
+        onSuccess();
+      }
+      setOpen(false);
     } catch (error) {
       console.error("❌ Error submitting form:", error);
       toast.error("Error creating purchase order");
-    }finally{
+    } finally {
       setSaving(false);
     }
   };
 
-  const handleCancel=()=>{
+  const handleCancel = () => {
     setForm(initialFormState);
-  }
+  };
 
-  if(!currentUser)return <div>Loading...</div>
+  if (!currentUser) return <div>Loading...</div>;
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => setOpen(true)}
+        >
           <CirclePlus className="h-5 w-5" />
           Purchase Order
         </Button>
@@ -266,7 +271,7 @@ const handleSubmit = async (e) => {
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {form.date ? (
-                              format(form.date, "PPP")
+                              format(form.date, "dd MMM yyyy")
                             ) : (
                               <span>Pick a date</span>
                             )}
@@ -308,10 +313,15 @@ const handleSubmit = async (e) => {
                         </PopoverTrigger>
                         <PopoverContent className="w-full p-0">
                           <Command>
-                            <CommandInput placeholder="Search agent..." onValueChange={(v)=>setForm({
-                              ...form,
-                              agentName:v
-                            })} />
+                            <CommandInput
+                              placeholder="Search agent..."
+                              onValueChange={(v) =>
+                                setForm({
+                                  ...form,
+                                  agentName: v,
+                                })
+                              }
+                            />
                             <CommandList>
                               <CommandEmpty>
                                 <div className="flex flex-col items-center gap-2 py-3">
@@ -323,14 +333,12 @@ const handleSubmit = async (e) => {
                                     size="sm"
                                     onClick={async () => {
                                       if (!form.agentName) return;
-                                      
+
                                       setAgentOpen(false);
                                     }}
                                   >
                                     <CirclePlus className="w-4 h-4 mr-1" />
-                                    Add “
-                                    {form.agentName}
-                                    ”
+                                    Add “{form.agentName}”
                                   </Button>
                                 </div>
                               </CommandEmpty>
@@ -365,19 +373,19 @@ const handleSubmit = async (e) => {
                       </Popover>
                     </div>
 
-                    {/* Mill Dropdown */}
+                    {/* Category Dropdown */}
                     <div className="flex flex-col space-y-1">
-                      <Label htmlFor="mill">Mill</Label>
-                      <Popover open={millOpen} onOpenChange={setMillOpen}>
+                      <Label htmlFor="category">Category</Label>
+                      <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
                             role="combobox"
-                            aria-expanded={millOpen}
+                            aria-expanded={categoryOpen}
                             className="w-full justify-between"
                           >
-                            {form.millName ? (
-                              form.millName
+                            {form.categoryName ? (
+                              form.categoryName
                             ) : (
                               <span className="text-muted-foreground">
                                 Select...
@@ -388,56 +396,57 @@ const handleSubmit = async (e) => {
                         </PopoverTrigger>
                         <PopoverContent className="w-full p-0">
                           <Command>
-                            <CommandInput placeholder="Search mill..." 
-                            onValueChange={(v)=>setForm({
-                              ...form,
-                              millName:v
-                            })}
-                             />
+                            <CommandInput
+                              placeholder="Search category..."
+                              onValueChange={(v) =>
+                                setForm({
+                                  ...form,
+                                  categoryName: v,
+                                })
+                              }
+                            />
                             <CommandList>
                               <CommandEmpty>
                                 <div className="flex flex-col items-center gap-2 py-3">
                                   <p className="text-sm text-muted-foreground">
-                                    No mill found.
+                                    No category found.
                                   </p>
                                   <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={async () => {
-                                      if (!form.millName) return;
-                                     
-                                      setMillOpen(false);
+                                      if (!form.categoryName) return;
+
+                                      setCategoryOpen(false);
                                     }}
                                   >
                                     <CirclePlus className="w-4 h-4 mr-1" />
-                                    Add “
-                                    {form.millName}
-                                    ”
+                                    Add “{form.categoryName}”
                                   </Button>
                                 </div>
                               </CommandEmpty>
                               <CommandGroup>
-                                {mills.map((m) => (
+                                {categories.map((c) => (
                                   <CommandItem
-                                    key={m.id}
-                                    value={m.name}
+                                    key={c.id}
+                                    value={c.name}
                                     onSelect={() => {
                                       setForm({
                                         ...form,
-                                        millName: m.name,
-                                        millId: m.id,
+                                        categoryName: c.name,
+                                        categoryId: c.id,
                                       });
-                                      setMillOpen(false);
+                                      setCategoryOpen(false);
                                     }}
                                   >
                                     <CheckIcon
                                       className={`mr-2 h-4 w-4 ${
-                                        form.millName === m.name
+                                        form.categoryName === c.name
                                           ? "opacity-100"
                                           : "opacity-0"
                                       }`}
                                     />
-                                    {m.name}
+                                    {c.name}
                                   </CommandItem>
                                 ))}
                               </CommandGroup>
@@ -470,12 +479,15 @@ const handleSubmit = async (e) => {
                         </PopoverTrigger>
                         <PopoverContent className="w-full p-0">
                           <Command>
-                            <CommandInput placeholder="Search cloth..." 
-                            onValueChange={(v)=>setForm({
-                              ...form,
-                              clothName:v
-                            })}
-                             />
+                            <CommandInput
+                              placeholder="Search cloth..."
+                              onValueChange={(v) =>
+                                setForm({
+                                  ...form,
+                                  clothName: v,
+                                })
+                              }
+                            />
                             <CommandList>
                               <CommandEmpty>
                                 <div className="flex flex-col items-center gap-2 py-3">
@@ -487,14 +499,12 @@ const handleSubmit = async (e) => {
                                     size="sm"
                                     onClick={async () => {
                                       if (!form.clothName) return;
-                                      
+
                                       setClothOpen(false);
                                     }}
                                   >
                                     <CirclePlus className="w-4 h-4 mr-1" />
-                                    Add “
-                                    {form.clothName}
-                                    ”
+                                    Add “{form.clothName}”
                                   </Button>
                                 </div>
                               </CommandEmpty>
@@ -569,37 +579,100 @@ const handleSubmit = async (e) => {
                         }
                       />
                     </div>
+                    {/* Description */}
+                    <div className="flex flex-col space-y-1.5 col-span-2">
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea
+                        id="description"
+                        placeholder="Enter description"
+                        value={form.description}
+                        onChange={(e) =>
+                          setForm({ ...form, description: e.target.value })
+                        }
+                      />
+                    </div>
 
-                    {/* Due Date */}
-                    <div className="flex flex-col space-y-1 col-span-2">
-                      <Label>Due Date</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={`w-full justify-start text-left font-normal ${
-                              !form.dueDate ? "text-muted-foreground" : ""
-                            }`}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {form.dueDate ? (
-                              format(form.dueDate, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={form.dueDate}
-                            onSelect={(val) =>
-                              setForm({ ...form, dueDate: val })
-                            }
-                            initialFocus
+                    {/* Due Date + Days */}
+                    <div className="flex flex-col space-y-1.5 col-span-2">
+                      <Label>Due date</Label>
+
+                      <div className="flex items-center gap-3 w-full rounded-xl border bg-white px-3 py-2 shadow-sm">
+                        {/* Due Date Picker */}
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className="flex items-center gap-2 min-w-0 text-sm truncate"
+                            >
+                              <CalendarIcon className="h-4 w-4 shrink-0" />
+                              <span className="truncate">
+                                {form.dueDate
+                                  ? format(form.dueDate, "dd MMM yyyy")
+                                  : "Pick due date"}
+                              </span>
+                            </button>
+                          </PopoverTrigger>
+
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={form.dueDate}
+                              onSelect={(v) => {
+                                if (!v) return;
+                                setForm((prev) => {
+                                  if (prev.date) {
+                                    const diff = differenceInCalendarDays(
+                                      v,
+                                      prev.date
+                                    );
+                                    return {
+                                      ...prev,
+                                      dueDate: v,
+                                      dueDays: String(Math.max(0, diff)),
+                                    };
+                                  }
+                                  return { ...prev, dueDate: v };
+                                });
+                              }}
+                            />
+                          </PopoverContent>
+                        </Popover>
+
+                        {/* Divider */}
+                        <div className="h-6 w-px bg-muted-foreground/20" />
+
+                        {/* Days input */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            Days
+                          </span>
+                          <input
+                            type="number"
+                            min={0}
+                            className="w-20 rounded-md border px-2 py-1 text-sm text-center"
+                            value={form.dueDays ?? ""}
+                            placeholder="0"
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === "") {
+                                setForm((p) => ({ ...p, dueDays: "" }));
+                                return;
+                              }
+                              const days = Math.max(0, Number(val));
+                              setForm((prev) => {
+                                if (prev.date) {
+                                  return {
+                                    ...prev,
+                                    dueDays: days,
+                                    dueDate: addDays(prev.date, days),
+                                  };
+                                }
+                                return { ...prev, dueDays: days };
+                              });
+                            }}
                           />
-                        </PopoverContent>
-                      </Popover>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </AccordionContent>
@@ -610,7 +683,7 @@ const handleSubmit = async (e) => {
             <div className="grid grid-cols-2 gap-4">
               {/* Design */}
               <div className="flex flex-col space-y-1">
-                <Label htmlFor="designname">Design</Label>
+                <Label htmlFor="designname">Shirt Item</Label>
                 <Popover open={designOpen} onOpenChange={setDesignOpen}>
                   <PopoverTrigger asChild>
                     <Button
@@ -629,35 +702,35 @@ const handleSubmit = async (e) => {
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0">
                     <Command>
-                      <CommandInput placeholder="Search design..."
-                      onValueChange={(v)=>setForm({
-                        ...form,
-                        designName:v
-                      })}
-                      
+                      <CommandInput
+                        placeholder="Search design..."
+                        onValueChange={(v) =>
+                          setForm({
+                            ...form,
+                            designName: v,
+                          })
+                        }
                       />
                       <CommandList>
                         <CommandEmpty>
-                                <div className="flex flex-col items-center gap-2 py-3">
-                                  <p className="text-sm text-muted-foreground">
-                                    No design found.
-                                  </p>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={async () => {
-                                      if (!form.designName) return;
-                                      
-                                      setDesignOpen(false);
-                                    }}
-                                  >
-                                    <CirclePlus className="w-4 h-4 mr-1" />
-                                    Add “
-                                    {form.designName}
-                                    ”
-                                  </Button>
-                                </div>
-                              </CommandEmpty>
+                          <div className="flex flex-col items-center gap-2 py-3">
+                            <p className="text-sm text-muted-foreground">
+                              No design found.
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                if (!form.designName) return;
+
+                                setDesignOpen(false);
+                              }}
+                            >
+                              <CirclePlus className="w-4 h-4 mr-1" />
+                              Add “{form.designName}”
+                            </Button>
+                          </div>
+                        </CommandEmpty>
                         <CommandGroup>
                           {designs.map((c) => (
                             <CommandItem
@@ -710,34 +783,35 @@ const handleSubmit = async (e) => {
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0">
                     <Command>
-                      <CommandInput placeholder="Search fabricator..."
-                      onValueChange={(v)=>setForm({
-                        ...form,
-                        fabricatorName:v
-                      })}
-                       />
+                      <CommandInput
+                        placeholder="Search fabricator..."
+                        onValueChange={(v) =>
+                          setForm({
+                            ...form,
+                            fabricatorName: v,
+                          })
+                        }
+                      />
                       <CommandList>
                         <CommandEmpty>
-                                <div className="flex flex-col items-center gap-2 py-3">
-                                  <p className="text-sm text-muted-foreground">
-                                    No fabricator found.
-                                  </p>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={async () => {
-                                      if (!form.fabricatorName) return;
-                                    
-                                      setFabOpen(false);
-                                    }}
-                                  >
-                                    <CirclePlus className="w-4 h-4 mr-1" />
-                                    Add “
-                                    {form.fabricatorName}
-                                    ”
-                                  </Button>
-                                </div>
-                              </CommandEmpty>
+                          <div className="flex flex-col items-center gap-2 py-3">
+                            <p className="text-sm text-muted-foreground">
+                              No fabricator found.
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                if (!form.fabricatorName) return;
+
+                                setFabOpen(false);
+                              }}
+                            >
+                              <CirclePlus className="w-4 h-4 mr-1" />
+                              Add “{form.fabricatorName}”
+                            </Button>
+                          </div>
+                        </CommandEmpty>
                         <CommandGroup>
                           {fabricators.map((f) => (
                             <CommandItem
@@ -773,16 +847,23 @@ const handleSubmit = async (e) => {
             {/* Footer */}
             <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4">
               <DialogClose asChild>
-                <Button variant="outline" className="w-full sm:w-auto" onClick={handleCancel}>
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={handleCancel}
+                >
                   Cancel
                 </Button>
               </DialogClose>
-              {saving?<Button type="submit" className="w-full sm:w-auto" disabled>
-                Saving...
-              </Button>:<Button type="submit" className="w-full sm:w-auto">
-                Save changes
-              </Button>}
-              
+              {saving ? (
+                <Button type="submit" className="w-full sm:w-auto" disabled>
+                  Saving...
+                </Button>
+              ) : (
+                <Button type="submit" className="w-full sm:w-auto">
+                  Save changes
+                </Button>
+              )}
             </DialogFooter>
           </form>
         </ScrollArea>
