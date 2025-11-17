@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,7 +24,7 @@ import {
   CalendarIcon,
   CheckIcon,
   ChevronsUpDownIcon,
-  CirclePlus,
+  Edit,
   Shirt,
   StarIcon,
 } from "lucide-react";
@@ -34,7 +34,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, parseISO } from "date-fns";
+import { addDays, format, differenceInCalendarDays } from "date-fns";
 import {
   Command,
   CommandEmpty,
@@ -49,22 +49,22 @@ import { Toggle } from "./ui/toggle";
 import { useProdManager } from "@/context/ProdManagerContext";
 import { useGlobalUser } from "@/context/UserContext";
 import toast from "react-hot-toast";
-import useSWR, { mutate } from "swr";
+import { CirclePlus } from "lucide-react";
 
-
-export default function EditJobOrder({ jobSlip = {}, onSuccess,open,setOpen }) {
-  const { currentUser } = useGlobalUser();
-  const managerId= currentUser.id;
-  // UI state
+export function EditJobOrderForm({ jobOrder, onSuccess }) {
+  const [open, setOpen] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
   const [clothOpen, setClothOpen] = useState(false);
   const [designOpen, setDesignOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [expenseComboOpen, setExpenseComboOpen] = useState(false);
-  const [expensesOptions, setExpensesOptions] = useState([]);
+  const [selectedExpenses, setSelectedExpenses] = useState([]);
+  const [expenseToAdd, setExpenseToAdd] = useState("");
+  const [expenses, setExpenses] = useState([]);
   const [expenseSaving, setExpenseSaving] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  // Prod manager helpers
+  const { currentUser } = useGlobalUser();
   const {
     fabricators,
     addFabricator,
@@ -74,129 +74,92 @@ export default function EditJobOrder({ jobSlip = {}, onSuccess,open,setOpen }) {
     addDesign,
   } = useProdManager();
 
-  // form state (controlled)
-  const initialForm = {
-    id: jobSlip.id ?? null,
-    jobSlipNumber: jobSlip.jobSlipNumber ?? "",
-    managerId: currentUser?.id ?? null,
-    orderDate: jobSlip.orderDate ? parseISO(jobSlip.orderDate) : new Date(),
-    fabricatorId: jobSlip.fabricatorId ?? jobSlip.fabricatorId ?? null,
-    fabricatorName: jobSlip.fabricatorName ?? "",
-    dueDate: jobSlip.dueDate ? parseISO(jobSlip.dueDate) : null,
-    isSampleGiven: !!jobSlip.isSampleGiven,
-    clothId: jobSlip.clothId ?? null,
-    clothName: jobSlip.clothName ?? "",
-    totalMeter: jobSlip.totalMeter ?? 0,
-    price: jobSlip.price ?? 0,
-    designId: jobSlip.designId ?? null,
-    designName: jobSlip.designName ?? "",
-    average: jobSlip.average ?? 0,
-    fabrication: jobSlip.fabrication ?? 0,
-    costing: jobSlip.costing ?? 0,
-    isBestSeller: !!jobSlip.isBestSeller,
-  };
-
-  const [form, setForm] = useState(initialForm);
-
-  // selected expenses (array of { value, label, amount })
-  const [selectedExpenses, setSelectedExpenses] = useState([]);
-useEffect(() => {
-  if (jobSlip?.expenses) {
-    try {
-      const parsed = Array.isArray(jobSlip.expenses)
-        ? jobSlip.expenses
-        : JSON.parse(jobSlip.expenses);
-
-      setSelectedExpenses(
-        parsed.map((e) => ({
-          value: e.value,
-          label: e.label,
-          amount: e.amount ?? "",
-        }))
-      );
-    } catch {
-      setSelectedExpenses([]);
-    }
-  }
-}, [jobSlip]);
-  // const [purchaseOrders, setPurchaseOrders] = useState([]);
-  const [selectedPO, setSelectedPO] = useState(null);
-
-  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    jobSlipNumber: "",
+    managerId: currentUser?.id || "",
+    orderDate: new Date(),
+    fabricatorId: null,
+    fabricatorName: "",
+    dueDate: null,
+    dueDays: "",
+    isSampleGiven: false,
+    clothId: null,
+    clothName: "",
+    totalMeter: "",
+    price: "",
+    designId: null,
+    designName: "",
+    average: "",
+    fabrication: "",
+    costing: "",
+    salePrice: "",
+    isBestSeller: false,
+  });
 
   useEffect(() => {
+    if (open && jobOrder) {
+      // Find fabricator name
+      const fabricator = fabricators.find((f) => f.id === jobOrder.fabricatorId);
+      const cloth = cloths.find((c) => c.id === jobOrder.clothId);
+      const design = designs.find((d) => d.id === jobOrder.designId);
 
-    setForm((prev) => ({
-      ...prev,
-      jobSlipNumber: jobSlip.jobSlipNumber ?? prev.jobSlipNumber,
-      managerId: currentUser?.id ?? prev.managerId,
-      orderDate: jobSlip.orderDate ? parseISO(jobSlip.orderDate) : prev.orderDate,
-      fabricatorId: jobSlip.fabricatorId ?? prev.fabricatorId,
-      fabricatorName: jobSlip.fabricatorName ?? prev.fabricatorName,
-      dueDate: jobSlip.dueDate ? parseISO(jobSlip.dueDate) : prev.dueDate,
-      isSampleGiven: !!jobSlip.isSampleGiven,
-      clothId: jobSlip.clothId ?? prev.clothId,
-      clothName: jobSlip.clothName ?? prev.clothName,
-      totalMeter: jobSlip.totalMeter ?? prev.totalMeter,
-      price: jobSlip.price ?? prev.price,
-      designId: jobSlip.designId ?? prev.designId,
-      designName: jobSlip.designName ?? prev.designName,
-      average: jobSlip.average ?? prev.average,
-      fabrication: jobSlip.fabrication ?? prev.fabrication,
-      costing: jobSlip.costing ?? prev.costing,
-      isBestSeller: !!jobSlip.isBestSeller,
-    }));
+      // Parse dates
+      const orderDate = jobOrder.orderDate ? new Date(jobOrder.orderDate) : new Date();
+      const dueDate = jobOrder.dueDate ? new Date(jobOrder.dueDate) : null;
 
-    // set selectedPO if jobSlip has POnumber
-    if (jobSlip.POnumber) {
-      setSelectedPO({ POnumber: jobSlip.POnumber, id: jobSlip.poId ?? null });
-    }
-  }, [jobSlip, currentUser]);
+      // Calculate due days
+      let dueDays = "";
+      if (orderDate && dueDate) {
+        dueDays = String(differenceInCalendarDays(dueDate, orderDate));
+      }
 
-  // Fetch expenses list for combobox
-  async function fetchExpenses() {
-    if (!currentUser?.id) return;
-    try {
-      const res = await fetch(`/api/expenses?managerId=${currentUser.id}`);
-      if (!res.ok) throw new Error("Failed to fetch expenses");
-      const data = await res.json();
-      const formatted = data.map((exp) => ({ value: exp.id, label: exp.expenseName }));
-      setExpensesOptions(formatted);
-    } catch (err) {
-      console.error("Failed to load expenses:", err);
-    }
-  }
-
-  // Add a new expense option
-  async function handleAddNewExpense(name) {
-    if (!name || !currentUser?.id) return;
-    try {
-      setExpenseSaving(true);
-      const res = await fetch("/api/expenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expenseName: name, managerId: currentUser.id }),
+      setForm({
+        jobSlipNumber: jobOrder.jobSlipNumber || "",
+        managerId: jobOrder.managerId || currentUser?.id || "",
+        orderDate: orderDate,
+        fabricatorId: jobOrder.fabricatorId || null,
+        fabricatorName: fabricator?.name || "",
+        dueDate: dueDate,
+        dueDays: dueDays,
+        isSampleGiven: jobOrder.isSampleGiven || false,
+        clothId: jobOrder.clothId || null,
+        clothName: cloth?.name || "",
+        totalMeter: jobOrder.totalMeter?.toString() || "",
+        price: jobOrder.price?.toString() || "",
+        designId: jobOrder.designId || null,
+        designName: design?.name || "",
+        average: jobOrder.average?.toString() || "",
+        fabrication: jobOrder.fabrication?.toString() || "",
+        costing: jobOrder.costing?.toString() || "",
+        salePrice: jobOrder.salePrice?.toString() || "",
+        isBestSeller: jobOrder.isBestSeller || false,
       });
-      if (!res.ok) throw new Error("Failed to create expense");
-      const newExpense = await res.json();
-      const formatted = { value: newExpense.id, label: newExpense.expenseName };
-      setExpensesOptions((p) => [...p, formatted]);
-      // auto-select newly created expense
-      setSelectedExpenses((prev) => [...prev, { ...formatted, amount: "" }]);
-      setExpenseComboOpen(false);
-    } catch (err) {
-      console.error("Error adding expense:", err);
-      toast.error("Failed to add expense");
-    } finally {
-      setExpenseSaving(false);
-    }
-  }
 
-  // Combobox add expense handler
-  const handleAddExpense = (value) => {
-    const found = expensesOptions.find((e) => e.value === value);
+      // Load expenses
+      if (jobOrder.expenses && Array.isArray(jobOrder.expenses)) {
+        fetchExpenses().then(() => {
+          const loadedExpenses = jobOrder.expenses.map((exp) => ({
+            value: exp.expenseId,
+            label: exp.expenseName || `Expense ${exp.expenseId}`,
+            amount: exp.amount?.toString() || "",
+          }));
+          setSelectedExpenses(loadedExpenses);
+        });
+      } else {
+        setSelectedExpenses([]);
+      }
+    }
+  }, [open, jobOrder, fabricators, cloths, designs, currentUser]);
+
+  const handleAddExpense = (e) => {
+    const val = e.target.value;
+    if (!val) return;
+
+    const found = expenses.find((ex) => ex.value === val);
     if (!found) return;
+
     if (selectedExpenses.some((s) => s.value === found.value)) return;
+
     setSelectedExpenses((prev) => [...prev, { ...found, amount: "" }]);
   };
 
@@ -211,79 +174,163 @@ useEffect(() => {
   const handleRemoveExpense = (index) => {
     setSelectedExpenses((prev) => prev.filter((_, i) => i !== index));
   };
-  // submit handler — convert to PUT (edit)
+
+  async function fetchExpenses() {
+    try {
+      const res = await fetch(`/api/expenses?managerId=${currentUser.id}`);
+      const data = await res.json();
+      const formatted = data.map((exp) => ({
+        value: exp.id,
+        label: exp.expenseName,
+      }));
+      setExpenses(formatted);
+    } catch (err) {
+      console.error("Failed to load expenses:", err);
+    }
+  }
+
+  async function handleAddNewExpense(name) {
+    try {
+      setExpenseSaving(true);
+
+      const res = await fetch("/api/expenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expenseName: name, managerId: currentUser.id }),
+      });
+
+      const newExpense = await res.json();
+      const formatted = { value: newExpense.id, label: newExpense.expenseName };
+
+      setExpenses((prev) => [...prev, formatted]);
+
+      // Auto-add after creation
+      handleAddExpense({ target: { value: formatted.value } });
+
+      setExpenseToAdd("");
+      setExpenseComboOpen(false);
+    } catch (err) {
+      console.error("Error adding expense:", err);
+    } finally {
+      setExpenseSaving(false);
+    }
+  }
+
+  const handleCancel = () => {
+    setOpen(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!currentUser?.id) {
-      toast.error("User not loaded");
+
+    if (!form.jobSlipNumber?.trim()) {
+      toast.error("Job Slip Number is required");
+      return;
+    }
+
+    if (!form.managerId) {
+      toast.error("Manager ID is missing");
       return;
     }
 
     try {
       setSaving(true);
 
-      let payload = {
-        jobSlipNumber: form.jobSlipNumber,
-        managerId: currentUser.id,
-        orderDate: form.orderDate ? form.orderDate.toISOString() : null,
-        fabricatorId: form.fabricatorId,
-        fabricatorName: form.fabricatorName,
-        dueDate: form.dueDate ? form.dueDate.toISOString() : null,
-        isSampleGiven: !!form.isSampleGiven,
-        clothId: form.clothId,
-        clothName: form.clothName,
-        totalMeter: Number(form.totalMeter) || 0,
-        price: Number(form.price) || 0,
-        designId: form.designId,
-        designName: form.designName,
-        average: Number(form.average) || 0,
-        fabrication: Number(form.fabrication) || 0,
-        costing: Number(form.costing) || 0,
-        isBestSeller: !!form.isBestSeller,
-        expenses: selectedExpenses.map((s) => ({
-  value: s.value,
-  label: s.label,
-  amount: s.amount,
-})),
+      let {
+        jobSlipNumber,
+        managerId,
+        orderDate,
+        fabricatorId,
+        fabricatorName,
+        dueDate,
+        isSampleGiven,
+        clothId,
+        clothName,
+        totalMeter,
+        price,
+        designId,
+        designName,
+        average,
+        fabrication,
+        costing,
+        salePrice,
+        isBestSeller,
+      } = form;
 
-        isEditForm: true,
+      // Handle new fabricator
+      if (!fabricatorId && fabricatorName) {
+        const newFab = await addFabricator(fabricatorName);
+        fabricatorId = newFab?.id;
+      }
+
+      // Handle new cloth
+      if (!clothId && clothName) {
+        const newCloth = await addCloth(clothName);
+        clothId = newCloth?.id;
+      }
+
+      // Handle new design
+      if (!designId && designName) {
+        const newDesign = await addDesign(designName);
+        designId = newDesign?.id;
+      }
+
+      // Construct final object for submission
+      const finalJobSlip = {
+        isEditForm:true,
+        jobSlipNumber,
+        managerId,
+        orderDate,
+        fabricatorId,
+        dueDate,
+        isSampleGiven,
+        clothId,
+        totalMeter: parseFloat(totalMeter) || 0,
+        price: parseFloat(price) || 0,
+        designId,
+        average: parseFloat(average) || 0,
+        fabrication: parseFloat(fabrication) || 0,
+        costing: parseFloat(costing) || 0,
+        salePrice: parseFloat(salePrice) || 0,
+        isBestSeller,
+        expenses: selectedExpenses,
       };
 
-      if (!payload.fabricatorId && payload.fabricatorName) {
-        const newFab = await addFabricator(payload.fabricatorName);
-        payload.fabricatorId = newFab?.id ?? payload.fabricatorId;
-      }
-      if (!payload.clothId && payload.clothName) {
-        const newCloth = await addCloth(payload.clothName);
-        payload.clothId = newCloth?.id ?? payload.clothId;
-      }
-      if (!payload.designId && payload.designName) {
-        const newDesign = await addDesign(payload.designName);
-        payload.designId = newDesign?.id ?? payload.designId;
-      }
-
+      // Send to API (PUT request for update)
       const res = await fetch("/api/jobOrder", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(finalJobSlip),
       });
 
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Server Error: ${res.status} ${text}`);
+        const data = await res.json();
+        if (res.status === 400) {
+          toast.error(data.error || "Missing required fields");
+        } else if (res.status === 404) {
+          toast.error("Job order not found");
+        } else if (res.status === 500) {
+          toast.error(data.error || "Server error occurred");
+        } else {
+          toast.error("Failed to update job order");
+        }
+        return;
       }
 
       const data = await res.json();
 
-      toast.success("Job Slip updated successfully ✅");
+      toast.success("Job order updated successfully ✅");
       setOpen(false);
-      mutate(`/api/fabricators?managerId=${managerId}`);
-      mutate(`/api/designs?managerId=${managerId}`);
 
-      if (onSuccess) onSuccess(data);
-    } catch (err) {
-      console.error("❌ Error submitting job slip:", err);
-      toast.error("Error updating job slip");
+      if (onSuccess) {
+        onSuccess();
+      }
+      setOpen(false);
+    } catch (error) {
+      console.error("❌ Error updating job order:", error);
+      toast.error("Error updating job order");
     } finally {
       setSaving(false);
     }
@@ -291,41 +338,58 @@ useEffect(() => {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-[650px] w-[95%]">
-        <ScrollArea className="h-[85vh] pr-4">
+      <DialogTrigger asChild>
+        {(
+          <Button  className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-1.5 rounded-md shadow-sm transition-all gap-2">
+            <Edit className="h-4 w-4" />
+            Edit
+          </Button>
+        )}
+      </DialogTrigger>
+
+      <DialogContent className="sm:max-w-[600px] w-[100%]">
+        <ScrollArea className="h-[85vh]">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle>Edit Job Order</DialogTitle>
               <DialogDescription>
-                Update the job order details and click <b>Save changes</b>.
+                Update the job order information below. Click <b>Save changes</b> when done.
               </DialogDescription>
             </DialogHeader>
 
+            {/* Form Fields */}
             <div className="flex flex-col space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Job Slip ID */}
-                <div className="flex flex-col space-y-2">
+                <div className="flex flex-col space-y-1.5">
                   <Label htmlFor="jobslipid">Job Slip No.</Label>
                   <Input
                     id="jobslipid"
-                    name="jobslipid"
+                    placeholder="Enter..."
                     className="w-full"
                     value={form.jobSlipNumber}
                     disabled
-                    onChange={(e) => setForm({ ...form, jobSlipNumber: e.target.value })}
+                    readOnly
                   />
                 </div>
 
                 {/* Job Date */}
-                <div className="flex flex-col space-y-2">
+                <div className="flex flex-col space-y-1.5">
                   <Label>Date</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className={`w-full justify-start text-left font-normal ${!form.orderDate ? "text-muted-foreground" : ""}`}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {form.orderDate ? format(form.orderDate, "PPP") : <span>Pick a date</span>}
+                        className="w-full flex items-center justify-between text-sm overflow-hidden"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CalendarIcon className="h-4 w-4 shrink-0" />
+                          <span className="truncate">
+                            {form.orderDate
+                              ? format(form.orderDate, "dd MMM yyyy")
+                              : "Pick date"}
+                          </span>
+                        </div>
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -333,36 +397,51 @@ useEffect(() => {
                         mode="single"
                         selected={form.orderDate}
                         onSelect={(v) => setForm({ ...form, orderDate: v })}
-                        initialFocus
                       />
                     </PopoverContent>
                   </Popover>
                 </div>
 
                 {/* Fabricator Dropdown */}
-                <div className="flex flex-col space-y-2">
-                  <Label htmlFor="fabricator">Fabricator</Label>
+                <div className="flex flex-col space-y-1.5">
+                  <Label>Fabricator</Label>
                   <Popover open={fabOpen} onOpenChange={setFabOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" role="combobox" aria-expanded={fabOpen} className="w-full justify-between" disabled>
-                        {form.fabricatorName ? form.fabricatorName : <span className="text-muted-foreground">Select...</span>}
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between text-sm overflow-hidden"
+                      >
+                        <span className="truncate max-w-[80%]">
+                          {form.fabricatorName || "Select..."}
+                        </span>
                         <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
+
+                    <PopoverContent className="p-0 w-full">
                       <Command>
                         <CommandInput
                           placeholder="Search fabricator..."
-                          onValueChange={(v) => setForm({ ...form, fabricatorName: v })}
+                          onValueChange={(v) =>
+                            setForm({ ...form, fabricatorName: v })
+                          }
                         />
                         <CommandList>
                           <CommandEmpty>
                             <div className="flex flex-col items-center gap-2 py-3">
-                              <p className="text-sm text-muted-foreground">No fabricator found.</p>
-                              <Button variant="outline" size="sm" onClick={async () => { if (!form.fabricatorName) return; 
-                                setFabOpen(false); }}>
+                              <p className="text-sm text-muted-foreground">
+                                No fabricator found.
+                              </p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  if (!form.fabricatorName) return;
+                                  setFabOpen(false);
+                                }}
+                              >
                                 <CirclePlus className="w-4 h-4 mr-1" />
-                                Add “{form.fabricatorName}”
+                                Add "{form.fabricatorName}"
                               </Button>
                             </div>
                           </CommandEmpty>
@@ -372,13 +451,24 @@ useEffect(() => {
                               <CommandItem
                                 key={f.id}
                                 value={f.name}
+                                className="truncate"
                                 onSelect={() => {
-                                  setForm({ ...form, fabricatorName: f.name, fabricatorId: f.id });
+                                  setForm({
+                                    ...form,
+                                    fabricatorName: f.name,
+                                    fabricatorId: f.id,
+                                  });
                                   setFabOpen(false);
                                 }}
                               >
-                                <CheckIcon className={`mr-2 h-4 w-4 ${form.fabricatorName === f.name ? "opacity-100" : "opacity-0"}`} />
-                                {f.name}
+                                <CheckIcon
+                                  className={`mr-2 h-4 w-4 ${
+                                    form.fabricatorName === f.name
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  }`}
+                                />
+                                <span className="truncate">{f.name}</span>
                               </CommandItem>
                             ))}
                           </CommandGroup>
@@ -388,65 +478,190 @@ useEffect(() => {
                   </Popover>
                 </div>
 
-                {/* Due Date Picker */}
-                <div className="flex flex-col space-y-2">
-                  <Label>Due Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={`w-full justify-start text-left font-normal ${!form.dueDate ? "text-muted-foreground" : ""}`}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {form.dueDate ? format(form.dueDate, "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={form.dueDate} onSelect={(v) => setForm({ ...form, dueDate: v })} initialFocus />
-                    </PopoverContent>
-                  </Popover>
+                {/* Sample Given Toggle */}
+                <div className="mt-5 lg:mt-7">
+                  <Toggle
+                    pressed={form.isSampleGiven}
+                    onPressedChange={(p) =>
+                      setForm({ ...form, isSampleGiven: p })
+                    }
+                    className="cursor-pointer border border-slate-300 transition-all hover:bg-blue-50 hover:text-blue-600
+                 data-[state=on]:bg-blue-50 data-[state=on]:text-blue-600 data-[state=on]:border-blue-300"
+                  >
+                    <Shirt className="w-4 h-4" />
+                    <span className="font-medium">Sample Given</span>
+                  </Toggle>
                 </div>
 
-                <Toggle pressed={form.isSampleGiven} onPressedChange={(p) => setForm({ ...form, isSampleGiven: p })} className={`cursor-pointer border border-slate-300 transition-all hover:bg-blue-50 hover:text-blue-600 data-[state=on]:bg-blue-50 data-[state=on]:text-blue-600 data-[state=on]:border-blue-300 data-[state=on]:*:[svg]:stroke-blue-600 data-[state=on]:*:[svg]:fill-blue-600`}>
-                  <Shirt className="w-4 h-4 transition-all duration-200" />
-                  <span className="font-medium">Sample Given</span>
-                </Toggle>
+                {/* Due Date + Days */}
+                <div className="flex flex-col space-y-1.5 col-span-2">
+                  <Label>Due date</Label>
+
+                  <div className="flex items-center gap-3 w-full rounded-xl border bg-white px-3 py-2 shadow-sm">
+                    {/* Due Date Picker */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="flex items-center gap-2 min-w-0 text-sm truncate"
+                        >
+                          <CalendarIcon className="h-4 w-4 shrink-0" />
+                          <span className="truncate">
+                            {form.dueDate
+                              ? format(form.dueDate, "dd MMM yyyy")
+                              : "Pick due date"}
+                          </span>
+                        </button>
+                      </PopoverTrigger>
+
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={form.dueDate}
+                          onSelect={(v) => {
+                            if (!v) return;
+                            setForm((prev) => {
+                              if (prev.orderDate) {
+                                const diff = differenceInCalendarDays(
+                                  v,
+                                  prev.orderDate
+                                );
+                                return {
+                                  ...prev,
+                                  dueDate: v,
+                                  dueDays: String(Math.max(0, diff)),
+                                };
+                              }
+                              return { ...prev, dueDate: v };
+                            });
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+
+                    {/* Divider */}
+                    <div className="h-6 w-px bg-muted-foreground/20" />
+
+                    {/* Days input */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Days</span>
+                      <input
+                        type="number"
+                        min={0}
+                        className="w-20 rounded-md border px-2 py-1 text-sm text-center"
+                        value={form.dueDays ?? ""}
+                        placeholder="0"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "") {
+                            setForm((p) => ({ ...p, dueDays: "" }));
+                            return;
+                          }
+                          const days = Math.max(0, Number(val));
+                          setForm((prev) => {
+                            if (prev.orderDate) {
+                              return {
+                                ...prev,
+                                dueDays: days,
+                                dueDate: addDays(prev.orderDate, days),
+                              };
+                            }
+                            return { ...prev, dueDays: days };
+                          });
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Material details */}
-              <Accordion type="multiple" className="w-full" defaultValue={["shirtdetails"]}>
-                <AccordionItem value="materialdetails" className="border border-gray-200 rounded-xl shadow-sm bg-white my-2">
-                  <AccordionTrigger className="text-md font-semibold px-4 py-2 text-gray-800 cursor-pointer hover:text-indigo-700">Material Details</AccordionTrigger>
+              <Accordion
+                type="multiple"
+                className="w-full"
+                defaultValue={["materialdetails", "shirtdetails"]}
+              >
+                {/* ------------------ MATERIAL DETAILS ------------------ */}
+                <AccordionItem
+                  value="materialdetails"
+                  className="border border-gray-200 rounded-xl shadow-sm bg-white my-2"
+                >
+                  <AccordionTrigger className="text-md font-semibold px-4 py-2 text-gray-800 cursor-pointer hover:text-indigo-700">
+                    Material Details
+                  </AccordionTrigger>
 
                   <AccordionContent className="p-4 text-gray-600 bg-gray-50 rounded-b-xl">
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {/* Cloth Name */}
-                      <div className="flex flex-col space-y-2">
-                        <Label htmlFor="clothname">Cloth Name</Label>
+                      {/* CLOTH NAME */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Cloth Name</Label>
+
                         <Popover open={clothOpen} onOpenChange={setClothOpen}>
                           <PopoverTrigger asChild>
-                            <Button variant="outline" role="combobox" aria-expanded={clothOpen} className="w-full justify-between" disabled>
-                              {form.clothName ? form.clothName : <span className="text-muted-foreground">Select...</span>}
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={clothOpen}
+                              className="w-full justify-between overflow-hidden"
+                            >
+                              <span className="truncate">
+                                {form.clothName || "Select..."}
+                              </span>
                               <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </PopoverTrigger>
+
                           <PopoverContent className="w-full p-0">
                             <Command>
-                              <CommandInput placeholder="Search cloth..." onValueChange={(v) => setForm({ ...form, clothName: v })} />
+                              <CommandInput
+                                placeholder="Search cloth..."
+                                onValueChange={(v) =>
+                                  setForm({ ...form, clothName: v })
+                                }
+                              />
                               <CommandList>
                                 <CommandEmpty>
                                   <div className="flex flex-col items-center gap-2 py-3">
-                                    <p className="text-sm text-muted-foreground">No cloth found.</p>
-                                    <Button variant="outline" size="sm" 
-                                    onClick={async () => { 
-                                      if (!form.clothName) return;  setClothOpen(false); }}>
+                                    <p className="text-sm text-muted-foreground">
+                                      No cloth found.
+                                    </p>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        if (!form.clothName) return;
+                                        setClothOpen(false);
+                                      }}
+                                    >
                                       <CirclePlus className="w-4 h-4 mr-1" />
-                                      Add “{form.clothName}”
+                                      Add "{form.clothName}"
                                     </Button>
                                   </div>
                                 </CommandEmpty>
+
                                 <CommandGroup>
                                   {cloths.map((c) => (
-                                    <CommandItem key={c.id} value={c.name} onSelect={() => { setForm({ ...form, clothName: c.name, clothId: c.id }); setClothOpen(false); }}>
-                                      <CheckIcon className={`mr-2 h-4 w-4 ${form.clothName === c.name ? "opacity-100" : "opacity-0"}`} />
-                                      {c.name}
+                                    <CommandItem
+                                      key={c.id}
+                                      value={c.name}
+                                      className="truncate"
+                                      onSelect={() => {
+                                        setForm({
+                                          ...form,
+                                          clothName: c.name,
+                                          clothId: c.id,
+                                        });
+                                        setClothOpen(false);
+                                      }}
+                                    >
+                                      <CheckIcon
+                                        className={`mr-2 h-4 w-4 ${
+                                          form.clothName === c.name
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        }`}
+                                      />
+                                      <span className="truncate">{c.name}</span>
                                     </CommandItem>
                                   ))}
                                 </CommandGroup>
@@ -456,73 +671,116 @@ useEffect(() => {
                         </Popover>
                       </div>
 
-                      {/* Purchase Order (Dynamic based on Cloth Name) */}
-                      <div className="flex flex-col space-y-2">
-                        <Label htmlFor="po">Purchase Order</Label>
-                        <Popover open={false} onOpenChange={() => {}}>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" role="combobox" disabled className={`w-full justify-between ${!form.clothName ? "cursor-not-allowed opacity-60" : ""}`}>
-                              {selectedPO ? (
-                                <div className="flex flex-col items-start">
-                                  <span className="font-medium">{selectedPO.POnumber}</span>
-                                  <span className="text-xs text-muted-foreground">{selectedPO.designName} • {selectedPO.fabricator}</span>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">{form.clothName ? "Selected PO (read-only)" : "Select cloth first"}</span>
-                              )}
-                            </Button>
-                          </PopoverTrigger>
-                        </Popover>
+                      {/* TOTAL METER */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Total Meter</Label>
+                        <Input
+                          placeholder="Enter total meter..."
+                          className="w-full truncate"
+                          value={form.totalMeter}
+                          onChange={(e) =>
+                            setForm({ ...form, totalMeter: e.target.value })
+                          }
+                        />
                       </div>
 
-                      {/* Total meter */}
-                      <div className="flex flex-col space-y-2">
-                        <Label htmlFor="totmeter">Total Meter</Label>
-                        <Input id="totmeter" name="totmeter" placeholder="Enter total meter..." className="w-full" value={form.totalMeter} onChange={(e) => setForm({ ...form, totalMeter: e.target.value })} />
-                      </div>
-
-                      {/* Total price */}
-                      <div className="flex flex-col space-y-2">
-                        <Label htmlFor="totprice">Price</Label>
-                        <Input id="totprice" name="totprice" placeholder="Enter price..." className="w-full" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+                      {/* PRICE */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Price</Label>
+                        <Input
+                          placeholder="Enter price..."
+                          className="w-full truncate"
+                          value={form.price}
+                          onChange={(e) =>
+                            setForm({ ...form, price: e.target.value })
+                          }
+                        />
                       </div>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
 
-                {/* Shirt Details */}
-                <AccordionItem value="shirtdetails" className="border border-gray-200 rounded-xl shadow-sm bg-white my-2">
-                  <AccordionTrigger className="text-md font-semibold px-4 py-2 text-gray-800 cursor-pointer hover:text-indigo-700">Shirt Details</AccordionTrigger>
+                {/* ------------------ SHIRT DETAILS ------------------ */}
+                <AccordionItem
+                  value="shirtdetails"
+                  className="border border-gray-200 rounded-xl shadow-sm bg-white my-2"
+                >
+                  <AccordionTrigger className="text-md font-semibold px-4 py-2 text-gray-800 cursor-pointer hover:text-indigo-700">
+                    Shirt Details
+                  </AccordionTrigger>
+
                   <AccordionContent className="p-4 text-gray-600 bg-gray-50 rounded-b-xl">
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {/* design Name */}
-                      <div className="flex flex-col space-y-2">
-                        <Label htmlFor="designname">Design</Label>
+                      {/* DESIGN */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Design</Label>
+
                         <Popover open={designOpen} onOpenChange={setDesignOpen}>
                           <PopoverTrigger asChild>
-                            <Button variant="outline" role="combobox" aria-expanded={designOpen} className="w-full justify-between" disabled>
-                              {form.designName ? form.designName : <span className="text-muted-foreground">Select...</span>}
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={designOpen}
+                              className="w-full justify-between overflow-hidden"
+                            >
+                              <span className="truncate">
+                                {form.designName || "Select..."}
+                              </span>
                               <ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </PopoverTrigger>
+
                           <PopoverContent className="w-full p-0">
                             <Command>
-                              <CommandInput placeholder="Search design..." onValueChange={(v) => setForm({ ...form, designName: v })} />
+                              <CommandInput
+                                placeholder="Search design..."
+                                onValueChange={(v) =>
+                                  setForm({ ...form, designName: v })
+                                }
+                              />
                               <CommandList>
                                 <CommandEmpty>
                                   <div className="flex flex-col items-center gap-2 py-3">
-                                    <p className="text-sm text-muted-foreground">No design found.</p>
-                                    <Button variant="outline" size="sm" onClick={async () => { if (!form.designName) return; setDesignOpen(false); }}>
+                                    <p className="text-sm text-muted-foreground">
+                                      No design found.
+                                    </p>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        if (!form.designName) return;
+                                        setDesignOpen(false);
+                                      }}
+                                    >
                                       <CirclePlus className="w-4 h-4 mr-1" />
-                                      Add “{form.designName}”
+                                      Add "{form.designName}"
                                     </Button>
                                   </div>
                                 </CommandEmpty>
+
                                 <CommandGroup>
-                                  {designs.map((c) => (
-                                    <CommandItem key={c.id} value={c.name} onSelect={() => { setForm({ ...form, designName: c.name, designId: c.id }); setDesignOpen(false); }}>
-                                      <CheckIcon className={`mr-2 h-4 w-4 ${form.designName === c.name ? "opacity-100" : "opacity-0"}`} />
-                                      {c.name}
+                                  {designs.map((d) => (
+                                    <CommandItem
+                                      key={d.id}
+                                      value={d.name}
+                                      className="truncate"
+                                      onSelect={() => {
+                                        setForm({
+                                          ...form,
+                                          designName: d.name,
+                                          designId: d.id,
+                                        });
+                                        setDesignOpen(false);
+                                      }}
+                                    >
+                                      <CheckIcon
+                                        className={`mr-2 h-4 w-4 ${
+                                          form.designName === d.name
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        }`}
+                                      />
+                                      <span className="truncate">{d.name}</span>
                                     </CommandItem>
                                   ))}
                                 </CommandGroup>
@@ -532,34 +790,59 @@ useEffect(() => {
                         </Popover>
                       </div>
 
-                      {/* average */}
-                      <div className="flex flex-col space-y-2">
-                        <Label htmlFor="average">Average</Label>
-                        <Input id="average" name="average" 
-                        value={form.average} 
-                        onChange={(e) => setForm({ ...form, average: e.target.value })} placeholder="Enter average..." className="w-full" />
+                      {/* AVERAGE */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Average</Label>
+                        <Input
+                          placeholder="Enter average..."
+                          className="w-full truncate"
+                          value={form.average}
+                          onChange={(e) =>
+                            setForm({ ...form, average: e.target.value })
+                          }
+                        />
                       </div>
 
-                      {/* fabrication */}
-                      <div className="flex flex-col space-y-2">
-                        <Label htmlFor="fabrication">Fabrication</Label>
-                        <Input id="fabrication" name="fabrication"    
-                        value={form.fabrication}
-                         onChange={(e) => setForm({ ...form, fabrication: e.target.value })} placeholder="Enter fabrication..." className="w-full" />
+                      {/* FABRICATION */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Fabrication</Label>
+                        <Input
+                          placeholder="Enter fabrication..."
+                          className="w-full truncate"
+                          value={form.fabrication}
+                          onChange={(e) =>
+                            setForm({ ...form, fabrication: e.target.value })
+                          }
+                        />
                       </div>
 
                       {/* --- EXPENSES SECTION --- */}
                       <div className="flex flex-col space-y-2">
                         <Label>Expenses</Label>
 
-                        <Dialog open={expenseOpen} onOpenChange={(isOpen) => { setExpenseOpen(isOpen); if (isOpen && expensesOptions.length === 0) fetchExpenses(); }}>
+                        <Dialog
+                          open={expenseOpen}
+                          onOpenChange={(isOpen) => {
+                            setExpenseOpen(isOpen);
+                            if (isOpen && expenses.length === 0) {
+                              fetchExpenses();
+                            }
+                          }}
+                        >
                           <DialogTrigger asChild>
-                            <Button variant="outline" className="flex items-center gap-2 text-sm">Click here</Button>
+                            <Button
+                              variant="outline"
+                              className="flex items-center gap-2 text-sm"
+                            >
+                              Click here
+                            </Button>
                           </DialogTrigger>
 
                           <DialogContent className="sm:max-w-[450px] rounded-2xl">
                             <DialogHeader>
-                              <DialogTitle className="text-lg font-semibold">Enter Expenses</DialogTitle>
+                              <DialogTitle className="text-lg font-semibold">
+                                Enter Expenses
+                              </DialogTitle>
                             </DialogHeader>
 
                             <Separator className="my-2" />
@@ -567,32 +850,102 @@ useEffect(() => {
                             <ScrollArea className="max-h-[300px] pr-2">
                               {/* Combobox + Add Button */}
                               <div className="flex items-center gap-2 mb-4 border-2 p-2 rounded-lg">
-                                <Label htmlFor="expense-select" className="min-w-[90px]">Add</Label>
+                                <Label
+                                  htmlFor="expense-select"
+                                  className="min-w-[90px]"
+                                >
+                                  Add
+                                </Label>
 
+                                {/* ✅ Expense Combobox */}
                                 <div className="flex-1">
-                                  <Popover open={expenseComboOpen} onOpenChange={setExpenseComboOpen}>
+                                  <Popover
+                                    open={expenseComboOpen}
+                                    onOpenChange={setExpenseComboOpen}
+                                  >
                                     <PopoverTrigger asChild>
-                                      <Button variant="outline" className="w-full justify-between text-left font-normal">{"-- Select expense --"}<ChevronsUpDownIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button>
+                                      <Button
+                                        variant="outline"
+                                        className="w-full justify-between text-left font-normal"
+                                      >
+                                        {expenseToAdd ? (
+                                          expenseToAdd
+                                        ) : (
+                                          <span className="text-muted-foreground">
+                                            -- Select expense --
+                                          </span>
+                                        )}
+                                        <ChevronsUpDownIcon className="ml-2 h-4 w-4 opacity-50" />
+                                      </Button>
                                     </PopoverTrigger>
 
                                     <PopoverContent className="w-full p-0">
                                       <Command>
-                                        <CommandInput placeholder="Search or add expense..." />
+                                        <CommandInput
+                                        placeholder="Search or add expense..."
+                                          value={expenseToAdd}
+                                          onValueChange={setExpenseToAdd}
+                                        />
+
                                         <CommandList>
                                           <CommandEmpty>
                                             <div className="flex flex-col items-center gap-2 py-3">
-                                              <p className="text-sm text-muted-foreground">No expense found.</p>
-                                              {expenseSaving ? <Button variant={"outline"} size="sm" disabled>Adding...</Button> : <Button variant="outline" size="sm" onClick={async () => { const name = prompt("Expense name"); if (!name) return; await handleAddNewExpense(name); }}> <CirclePlus className="w-4 h-4 mr-1" /> Add</Button>}
+                                              <p className="text-sm text-muted-foreground">
+                                                No expense found.
+                                              </p>
+
+                                              {expenseSaving ? (
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  disabled
+                                                >
+                                                  Adding...
+                                                </Button>
+                                              ) : (
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  onClick={async () => {
+                                                    if (!expenseToAdd.trim())
+                                                      return;
+                                                    await handleAddNewExpense(
+                                                      expenseToAdd.trim()
+                                                    );
+                                                  }}
+                                                >
+                                                  <CirclePlus className="w-4 h-4 mr-1" />{" "}
+                                                  Add "{expenseToAdd}"
+                                                </Button>
+                                              )}
                                             </div>
                                           </CommandEmpty>
 
                                           <CommandGroup>
-                                            {expensesOptions.filter((ex) => !selectedExpenses.some((s) => s.value === ex.value)).map((ex) => (
-                                              <CommandItem key={ex.value} value={ex.value} onSelect={() => { handleAddExpense(ex.value); setExpenseComboOpen(false); }}>
-                                                <CheckIcon className={`mr-2 h-4 w-4 ${false ? "opacity-100" : "opacity-0"}`} />
-                                                {ex.label}
-                                              </CommandItem>
-                                            ))}
+                                            {expenses
+                                              .filter(
+                                                (ex) =>
+                                                  !selectedExpenses.some(
+                                                    (s) => s.value === ex.value
+                                                  )
+                                              )
+                                              .map((ex) => (
+                                                <CommandItem
+                                                  key={ex.value}
+                                                  value={ex.label}
+                                                  onSelect={() => {
+                                                    handleAddExpense({
+                                                      target: {
+                                                        value: ex.value,
+                                                      },
+                                                    });
+                                                    setExpenseToAdd("");
+                                                    setExpenseComboOpen(false);
+                                                  }}
+                                                >
+                                                  {ex.label}
+                                                </CommandItem>
+                                              ))}
                                           </CommandGroup>
                                         </CommandList>
                                       </Command>
@@ -600,25 +953,58 @@ useEffect(() => {
                                   </Popover>
                                 </div>
 
-                                <Button variant="outline" onClick={() => { const name = prompt("Expense name"); if (!name) return; handleAddNewExpense(name); }}>Add</Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    if (!expenseToAdd) return;
+                                    handleAddExpense({
+                                      target: { value: expenseToAdd },
+                                    });
+                                  }}
+                                >
+                                  Add
+                                </Button>
                               </div>
 
-                              {/* List of added expenses */}
+                              {/* ✅ List of added expenses */}
                               {selectedExpenses.length === 0 && (
-                                <p className="text-sm text-muted-foreground">No expenses added yet. Select one above to add.</p>
+                                <p className="text-sm text-muted-foreground">
+                                  No expenses added yet. Select one above to
+                                  add.
+                                </p>
                               )}
 
                               <div className="space-y-3">
                                 {selectedExpenses.map((se, idx) => (
-                                  <div key={se.value} className="flex items-center gap-2">
+                                  <div
+                                    key={se.value}
+                                    className="flex items-center gap-2"
+                                  >
                                     <div className="w-1/2">
-                                      <Label className="text-sm">{se.label}</Label>
+                                      <Label className="text-sm">
+                                        {se.label}
+                                      </Label>
                                     </div>
                                     <div className="flex-1">
-                                      <Input type="number" placeholder="Enter amount" value={se.amount} onChange={(e) => handleAmountChange(idx, e.target.value)} />
+                                      <Input
+                                        type="number"
+                                        placeholder="Enter amount"
+                                        value={se.amount}
+                                        onChange={(e) =>
+                                          handleAmountChange(
+                                            idx,
+                                            e.target.value
+                                          )
+                                        }
+                                      />
                                     </div>
                                     <div>
-                                      <Button variant="outline" onClick={() => handleRemoveExpense(idx)}>Remove</Button>
+                                      <Button
+                                        variant="outline"
+                                        onClick={() => handleRemoveExpense(idx)}
+                                      >
+                                        Remove
+                                      </Button>
                                     </div>
                                   </div>
                                 ))}
@@ -627,23 +1013,51 @@ useEffect(() => {
 
                             <DialogFooter className="mt-3">
                               <DialogClose asChild>
-                                <Button variant="outline">Close</Button>
+                                <Button variant="outline">Cancel</Button>
                               </DialogClose>
+                              <Button onClick={() => setExpenseOpen(false)}>
+                                Save
+                              </Button>
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
                       </div>
 
-                      {/* costing */}
-                      <div className="flex flex-col space-y-2">
-                        <Label htmlFor="costing">Costing</Label>
-                        <Input id="costing" name="costing" 
-                        value={form.costing} 
-                        onChange={(e) => setForm({ ...form, costing: e.target.value })} placeholder="Enter costing..." className="w-full" />
+                      {/* COSTING */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Costing</Label>
+                        <Input
+                          placeholder="Enter costing..."
+                          className="w-full truncate"
+                          value={form.costing}
+                          onChange={(e) =>
+                            setForm({ ...form, costing: e.target.value })
+                          }
+                        />
+                      </div>
+
+                      {/* SALE PRICE */}
+                      <div className="flex flex-col space-y-1.5">
+                        <Label>Sale Price</Label>
+                        <Input
+                          placeholder="Enter sale price..."
+                          className="w-full truncate"
+                          value={form.salePrice}
+                          onChange={(e) =>
+                            setForm({ ...form, salePrice: e.target.value })
+                          }
+                        />
                       </div>
                     </div>
 
-                    <Toggle pressed={form.isBestSeller} onPressedChange={(p) => setForm({ ...form, isBestSeller: p })} className=" data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-yellow-500 data-[state=on]:*:[svg]:stroke-yellow-500 cursor-pointer mt-2">
+                    {/* BESTSELLER */}
+                    <Toggle
+                      pressed={form.isBestSeller}
+                      onPressedChange={(p) =>
+                        setForm({ ...form, isBestSeller: p })
+                      }
+                      className="mt-2 data-[state=on]:*:[svg]:fill-yellow-500 data-[state=on]:*:[svg]:stroke-yellow-500"
+                    >
                       <StarIcon />
                       Bestseller
                     </Toggle>
@@ -655,18 +1069,22 @@ useEffect(() => {
             {/* Footer Buttons */}
             <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 sm:gap-2">
               <DialogClose asChild>
-                <Button variant="outline" className="w-full sm:w-auto" onClick={() => 
-                { setForm(initialForm); setSelectedExpenses((jobSlip.expenses || []).map((e) => ({ value: e.id ?? e.value, label: e.expenseName ?? e.label ?? String(e.id || e.value), amount: e.amount ?? "" })) )
-                }
-                }>
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={handleCancel}
+                >
                   Cancel
                 </Button>
               </DialogClose>
-
               {saving ? (
-                <Button type="submit" className="w-full sm:w-auto" disabled>Saving...</Button>
+                <Button type="submit" className="w-full sm:w-auto" disabled>
+                  Saving...
+                </Button>
               ) : (
-                <Button type="submit" className="w-full sm:w-auto">Save changes</Button>
+                <Button type="submit" className="w-full sm:w-auto">
+                  Save Changes
+                </Button>
               )}
             </DialogFooter>
           </form>

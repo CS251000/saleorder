@@ -13,7 +13,9 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Card, CardContent } from "./ui/card";
 import { Separator } from "./ui/separator";
-import { Edit3, Trash2 } from "lucide-react";
+import { Edit3, Info, Trash2 } from "lucide-react";
+import { format } from "date-fns";
+import { EditPurchaseOrderForm } from "./editPurchaseOrder";
 
 export default function PurchaseOrderInfoDialog({ open, setOpen, po }) {
   if (!po) return null;
@@ -44,22 +46,18 @@ export default function PurchaseOrderInfoDialog({ open, setOpen, po }) {
           {/* 🧾 Basic Info */}
           <SectionTitle title="Basic Information" />
           <Card className="border border-gray-200 shadow-sm">
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 py-3">
+            <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4 py-3">
               <InfoItem title="PO Number" value={po.poNumber} />
               <InfoItem title="Status" value={po.status} />
               <InfoItem
                 title="Order Date"
-                value={
-                  po.orderDate
-                    ? new Date(po.orderDate).toLocaleDateString()
-                    : "-"
-                }
+                value={format(new Date(po.orderDate), "do MMM yyyy")}
               />
               <InfoItem
                 title="Due Date"
                 value={
                   po.dueDate
-                    ? new Date(po.dueDate).toLocaleDateString()
+                    ? format(new Date(po.dueDate), "do MMM yyyy")
                     : "-"
                 }
               />
@@ -68,13 +66,14 @@ export default function PurchaseOrderInfoDialog({ open, setOpen, po }) {
                 title="Purchase Rate"
                 value={`₹${po.purchaseRate || 0}`}
               />
+              <InfoItem className="col-span-2" title="Description" value={po.description || "-"} />
             </CardContent>
           </Card>
 
           {/* 🧵 Parties Involved */}
           <SectionTitle title="Associated Parties" />
           <Card className="border border-gray-200 shadow-sm">
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 py-3">
+            <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4 py-3">
               <InfoItem title="Agent" value={po.agentName || "-"} />
               <InfoItem title="Category" value={po.categoryName || "-"} />
               <InfoItem title="Fabricator" value={po.fabricatorName || "-"} />
@@ -84,7 +83,7 @@ export default function PurchaseOrderInfoDialog({ open, setOpen, po }) {
           {/* 👕 Material & Design */}
           <SectionTitle title="Material & Design Details" />
           <Card className="border border-gray-200 shadow-sm">
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 py-3">
+            <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4 py-3">
               <InfoItem title="Cloth Name" value={po.clothName || "-"} />
               <InfoItem title="Design Name" value={po.designName || "-"} />
             </CardContent>
@@ -93,7 +92,7 @@ export default function PurchaseOrderInfoDialog({ open, setOpen, po }) {
 
         <Separator className="my-3" />
 
-        <DialogFooter className="flex justify-center pt-2">
+        <DialogFooter className="flex flex-row justify-end pt-2">
           <Button
             variant="destructive"
             className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-md shadow-sm transition-all"
@@ -102,13 +101,7 @@ export default function PurchaseOrderInfoDialog({ open, setOpen, po }) {
             Delete
           </Button>
 
-          <Button
-            onClick={() => console.log("Edit clicked")}
-            className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded-md shadow-sm transition-all"
-          >
-            <Edit3 className="w-4 h-4" />
-            Edit
-          </Button>
+          <EditPurchaseOrderForm purchaseOrder={po}/>
           <Button
             variant="outline"
             size="sm"

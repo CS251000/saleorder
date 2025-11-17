@@ -154,6 +154,7 @@ export async function GET(req) {
       fabricatorId:jobOrder.fabricatorId,
       designId:jobOrder.designId,
       clothName: cloths.name,
+      clothId:jobOrder.clothId,
       designName: designs.name,
     })
     .from(jobOrder)

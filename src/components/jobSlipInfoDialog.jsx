@@ -15,7 +15,8 @@ import { Badge } from "./ui/badge";
 import { Card, CardContent } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Edit3, Trash2 } from "lucide-react";
-import EditJobOrder from "./editJobOrder";
+import { format } from "date-fns";
+import { EditJobOrderForm } from "./editJobOrder";
 
 export default function JobSlipInfoDialog({ open, setOpen, jobSlip }) {
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
@@ -70,11 +71,11 @@ export default function JobSlipInfoDialog({ open, setOpen, jobSlip }) {
               <InfoItem title="Status" value={jobSlip.status} />
               <InfoItem
                 title="Order Date"
-                value={new Date(jobSlip.orderDate).toLocaleDateString()}
+                value={format(new Date(jobSlip.orderDate), "do MMM yyyy")}
               />
               <InfoItem
                 title="Delivery Date"
-                value={new Date(jobSlip.dueDate).toLocaleDateString()}
+                value={format(new Date(jobSlip.dueDate), "do MMM yyyy")}
               />
               <InfoItem title="Fabricator" value={jobSlip.fabricatorName} />
               <InfoItem
@@ -191,13 +192,14 @@ export default function JobSlipInfoDialog({ open, setOpen, jobSlip }) {
               </div>
 
               <InfoItem title="Costing" value={`₹${jobSlip.costing}`} />
+              <InfoItem title="Sale Price" value={`₹${jobSlip.salePrice}`} />
             </CardContent>
           </Card>
         </div>
 
         <Separator className="my-3" />
 
-        <DialogFooter className="flex justify-center pt-2">
+        <DialogFooter className="flex flex-row justify-end pt-2">
           <Button
             variant="destructive"
             size={"sm"}
@@ -207,14 +209,7 @@ export default function JobSlipInfoDialog({ open, setOpen, jobSlip }) {
             Delete
           </Button>
 
-          <Button
-          size="sm"
-            onClick={() => setEditOpen(true)}
-            className="flex cursor-pointer items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded-md shadow-sm transition-all"
-          >
-            <Edit3 className="w-4 h-4" />
-            Edit
-          </Button>
+          <EditJobOrderForm jobOrder={jobSlip}/>
 
           <Button
             variant="outline"
@@ -226,15 +221,7 @@ export default function JobSlipInfoDialog({ open, setOpen, jobSlip }) {
           </Button>
         </DialogFooter>
       </DialogContent>
-      <EditJobOrder
-  jobSlip={jobSlip}
-  onSuccess={() => {
-    setEditOpen(false);
-    setOpen(false);
-  }}
-  open={editOpen}
-  setOpen={setEditOpen}
-/>
+
 
     </Dialog>
   );

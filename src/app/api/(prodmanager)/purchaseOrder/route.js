@@ -143,7 +143,10 @@ export async function GET(req) {
         agentId:purchaseOrder.agentId,
         clothName: cloths.name,
         agentName: clothBuyAgents.name,
+        categoryId: purchaseOrder.categoryId,
         categoryName: categories.name,
+        fabricatorId: purchaseOrder.fabricatorId,
+        designId: purchaseOrder.designId,
         fabricatorName: fabricators.name,
         designName: designs.name,
       })
@@ -189,8 +192,76 @@ export async function GET(req) {
 export async function PUT(req) {
   try {
     const body = await req.json();
-    const { POid, POnumber, clothId, agentId } = body;
+    const { isEditForm } = body;
 
+    // If isEditForm is true, handle form editing
+    if (isEditForm) {
+      const {
+        id,
+        POnumber,
+        date,
+        agentId,
+        categoryId,
+        clothId,
+        designId,
+        fabricatorId,
+        purchaseRate,
+        quantity,
+        description,
+        dueDate,
+        managerId,
+      } = body;
+
+      // Validate required fields
+      if (!id) {
+        return NextResponse.json(
+          { error: "Missing required field: id" },
+          { status: 400 }
+        );
+      }
+
+      // Prepare update data
+      const updateData = {};
+      
+      if (POnumber !== undefined) updateData.poNumber = POnumber;
+      if (date !== undefined) updateData.orderDate = new Date(date).toISOString();
+      if (agentId !== undefined) updateData.agentId = agentId;
+      if (categoryId !== undefined) updateData.categoryId = categoryId;
+      if (clothId !== undefined) updateData.clothId = clothId;
+      if (designId !== undefined) updateData.designId = designId;
+      if (fabricatorId !== undefined) updateData.fabricatorId = fabricatorId;
+      if (purchaseRate !== undefined) updateData.purchaseRate = parseFloat(purchaseRate);
+      if (quantity !== undefined) updateData.quantity = parseInt(quantity);
+      if (description !== undefined) updateData.description = description;
+      if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate).toISOString() : null;
+      if (managerId !== undefined) updateData.managerId = managerId;
+
+      // Update the purchase order
+      const [updatedOrder] = await db
+        .update(purchaseOrder)
+        .set(updateData)
+        .where(eq(purchaseOrder.id, id))
+        .returning();
+
+      if (!updatedOrder) {
+        return NextResponse.json(
+          { error: "Purchase order not found" },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json(
+        {
+          message: "✅ Purchase order updated successfully",
+          data: updatedOrder,
+        },
+        { status: 200 }
+      );
+    }
+
+    // Otherwise, handle status update (original functionality)
+    const { POid, POnumber, clothId, agentId } = body;
+    
     if (!POid || !POnumber) {
       return NextResponse.json(
         { error: "Missing required field: POid or POnumber" },

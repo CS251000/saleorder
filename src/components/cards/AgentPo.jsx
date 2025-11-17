@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '../ui/button';
 import { CircleCheckBig, CircleDot, Info, } from 'lucide-react';
 import PurchaseOrderInfoDialog from '../purchaseOrderInfoDialog';
+import { format } from 'date-fns';
 
 export default function AgentPO({purchaseOrder,onComplete}) {
   const [open,setOpen]= useState(false);
@@ -30,8 +31,8 @@ export default function AgentPO({purchaseOrder,onComplete}) {
         </CardHeader>
 
         <CardContent className="text-sm space-y-1">
-          <p>📅 Order Date: {new Date(purchaseOrder.orderDate).toLocaleDateString()}</p>
-          <p>🚚 Due Date: {new Date(purchaseOrder.dueDate).toLocaleDateString()}</p>
+          <p>📅 Order Date: {format(new Date(purchaseOrder.orderDate), "do MMM yyyy")}</p>
+          <p>🚚 Due Date: {format(new Date(purchaseOrder.dueDate), "do MMM yyyy")}</p>
         </CardContent>
 
         <CardFooter className="flex justify-center items-center gap-3">

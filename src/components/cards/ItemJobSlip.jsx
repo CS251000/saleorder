@@ -11,6 +11,7 @@ import {
 import { Button } from "../ui/button";
 import JobSlipInfoDialog from "../jobSlipInfoDialog";
 import { CircleCheckBig, CircleDot, Info} from "lucide-react";
+import { format } from "date-fns";
 
 export default function ItemJobSlipCard({ jobSlip,onComplete }) {
   const [open, setOpen] = useState(false);
@@ -33,9 +34,9 @@ export default function ItemJobSlipCard({ jobSlip,onComplete }) {
         </CardHeader>
 
         <CardContent className="text-sm space-y-1">
-          <p>📅 Order Date: {new Date(jobSlip.orderDate).toLocaleDateString()}</p>
+          <p>📅 Order Date: {format(new Date(jobSlip.orderDate), "do MMM yyyy")}</p>
 
-          <p>🚚 Delivery Date: {new Date(jobSlip.dueDate).toLocaleDateString()}</p>
+          <p>🚚 Delivery Date: {format(new Date(jobSlip.dueDate), "do MMM yyyy")}</p>
         </CardContent>
 
         <CardFooter className="flex justify-between items-center gap-3">

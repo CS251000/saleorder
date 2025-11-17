@@ -225,6 +225,13 @@
       "when": 1763134124058,
       "tag": "0031_tan_master_mold",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1763192017487,
+      "tag": "0032_majestic_namora",
+      "breakpoints": true
     }
   ]
 }
